@@ -4,21 +4,43 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { apiFetch } from "@/lib/api"; //
 
 export default function LoginPage() {
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorMessage("");
 
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      // Panggil endpoint login backend
+      const res = await apiFetch("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          email: identifier, // mengirim input Email / NIP sebagai email ke backend
+          password: password,
+        }),
+      });
+
+      // Simpan JWT token dan data user ke LocalStorage[cite: 2]
+      if (res.token) {
+        localStorage.setItem("token", res.token); //[cite: 2]
+        localStorage.setItem("user", JSON.stringify(res.user)); //[cite: 2]
+      }
+
+      // Navigasi ke halaman dashboard
       router.push("/dashboard");
-    }, 1000);
+    } catch (error: any) {
+      setErrorMessage(error.message || "Gagal login. Periksa kembali email dan password Anda.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -80,6 +102,13 @@ export default function LoginPage() {
               Masukkan Email / NIP Anda
             </p>
           </div>
+
+          {/* Pesan Error (jika ada) */}
+          {errorMessage && (
+            <div className="mb-4 p-3 rounded-lg bg-red-100 border border-red-300 text-red-700 text-sm font-medium">
+              {errorMessage}
+            </div>
+          )}
 
           {/* Form Input */}
           <form onSubmit={handleSubmit} className="space-y-6">

@@ -1,15 +1,40 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Sun, Moon, CheckCircle2, BookOpen, Users, FileEdit, TrendingUp } from "lucide-react";
+import { Sun, Moon, CheckCircle2, BookOpen, Users, FileEdit, TrendingUp, LogOut } from "lucide-react";
+import { apiFetch } from "@/lib/api"; //[cite: 2]
 
 export default function DashboardPage() {
   const { theme, setTheme } = useTheme();
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+
+  // State User Profil dari LocalStorage
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
+  }, []);
+
+  // Fungsi Logout
+  const handleLogout = async () => {
+    try {
+      await apiFetch("/auth/logout", { method: "POST" }); //
+    } catch (err) {
+      console.error("Gagal logout di server:", err);
+    } finally {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      router.push("/"); // Kembali ke halaman login
+    }
+  };
 
   // Data Kelas Aktif
   const activeClasses = [
@@ -155,8 +180,8 @@ export default function DashboardPage() {
           </nav>
         </div>
 
-        {/* Footer Sidebar & Theme Switcher */}
-        <div className="p-6 relative">
+        {/* Footer Sidebar, Theme Switcher & Logout */}
+        <div className="p-6 relative flex items-center justify-between">
           {showThemeMenu && (
             <div className="absolute bottom-16 left-6 w-48 bg-[#CBE0FE] text-slate-900 rounded-2xl shadow-2xl overflow-hidden border border-blue-200 p-1.5 space-y-1 z-30 transition-all">
               <button
@@ -207,6 +232,16 @@ export default function DashboardPage() {
           >
             <Sun className="w-6 h-6" />
           </button>
+
+          {/* Tombol Logout */}
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="p-2.5 rounded-xl text-red-300 hover:text-red-100 hover:bg-red-500/20 transition-all focus:outline-none cursor-pointer flex items-center gap-2"
+            title="Keluar / Logout"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
         </div>
       </aside>
 
@@ -221,14 +256,14 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3">
             <div className="text-right">
               <div className="text-sm font-bold text-black dark:text-white leading-tight">
-                Mister Potato
+                {user?.nama || "Mister Potato"}
               </div>
               <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                Fakultas Vokasi
+                {user?.role ? `Role: ${user.role}` : "Fakultas Vokasi"}
               </div>
             </div>
             <div className="w-10 h-10 rounded-xl bg-[#182B4E] text-white flex items-center justify-center font-bold text-base shadow-sm">
-              M
+              {(user?.nama || "M").charAt(0).toUpperCase()}
             </div>
           </div>
         </header>
@@ -240,7 +275,7 @@ export default function DashboardPage() {
           <div className="bg-[#CBE0FE] p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold text-slate-900">
-                Selamat Datang, Mister Potato!
+                Selamat Datang, {user?.nama || "Mister Potato"}!
               </h2>
               <p className="text-xs md:text-sm text-slate-700 mt-1 font-medium">
                 Pantau Aktivitas perkuliahan dan tindak lanjut mahasiswa Anda hari ini
@@ -255,52 +290,52 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-{/* STATS OVERVIEW CARDS */}
-<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-  {/* Card 1: Kelas Aktif */}
-  <div className="bg-[#CBE0FE] p-5 rounded-2xl shadow-sm flex flex-col justify-between h-32 relative">
-    <div className="flex items-center justify-between">
-      <span className="text-xs font-bold text-slate-800">Kelas Aktif</span>
-      <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600">
-        <BookOpen className="w-4 h-4" />
-      </div>
-    </div>
-    <div className="text-3xl font-extrabold text-slate-900">04</div>
-  </div>
+          {/* STATS OVERVIEW CARDS */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* Card 1: Kelas Aktif */}
+            <div className="bg-[#CBE0FE] p-5 rounded-2xl shadow-sm flex flex-col justify-between h-32 relative">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800">Kelas Aktif</span>
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600">
+                  <BookOpen className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-3xl font-extrabold text-slate-900">04</div>
+            </div>
 
-  {/* Card 2: Total Mahasiswa */}
-  <div className="bg-[#CBE0FE] p-5 rounded-2xl shadow-sm flex flex-col justify-between h-32 relative">
-    <div className="flex items-center justify-between">
-      <span className="text-xs font-bold text-slate-800">Total Mahasiswa</span>
-      <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
-        <Users className="w-4 h-4" />
-      </div>
-    </div>
-    <div className="text-3xl font-extrabold text-slate-900">84</div>
-  </div>
+            {/* Card 2: Total Mahasiswa */}
+            <div className="bg-[#CBE0FE] p-5 rounded-2xl shadow-sm flex flex-col justify-between h-32 relative">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800">Total Mahasiswa</span>
+                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
+                  <Users className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-3xl font-extrabold text-slate-900">84</div>
+            </div>
 
-  {/* Card 3: Perlu Dinilai */}
-  <div className="bg-[#CBE0FE] p-5 rounded-2xl shadow-sm flex flex-col justify-between h-32 relative">
-    <div className="flex items-center justify-between">
-      <span className="text-xs font-bold text-slate-800">Perlu Dinilai</span>
-      <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600">
-        <FileEdit className="w-4 h-4" />
-      </div>
-    </div>
-    <div className="text-3xl font-extrabold text-slate-900">18</div>
-  </div>
+            {/* Card 3: Perlu Dinilai */}
+            <div className="bg-[#CBE0FE] p-5 rounded-2xl shadow-sm flex flex-col justify-between h-32 relative">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800">Perlu Dinilai</span>
+                <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600">
+                  <FileEdit className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-3xl font-extrabold text-slate-900">18</div>
+            </div>
 
-  {/* Card 4: Kehadiran Rata-Rata */}
-  <div className="bg-[#CBE0FE] p-5 rounded-2xl shadow-sm flex flex-col justify-between h-32 relative">
-    <div className="flex items-center justify-between">
-      <span className="text-xs font-bold text-slate-800">Kehadiran Rata-Rata</span>
-      <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600">
-        <TrendingUp className="w-4 h-4" />
-      </div>
-    </div>
-    <div className="text-3xl font-extrabold text-slate-900">89%</div>
-  </div>
-</div>
+            {/* Card 4: Kehadiran Rata-Rata */}
+            <div className="bg-[#CBE0FE] p-5 rounded-2xl shadow-sm flex flex-col justify-between h-32 relative">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800">Kehadiran Rata-Rata</span>
+                <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600">
+                  <TrendingUp className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="text-3xl font-extrabold text-slate-900">89%</div>
+            </div>
+          </div>
 
           {/* BOTTOM SECTION: KELAS AKTIF & AKTIVITAS */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
