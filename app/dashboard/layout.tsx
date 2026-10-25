@@ -1,31 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
-  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // Cek ketersediaan token di LocalStorage[cite: 2]
-    const token = localStorage.getItem("token");
-    if (!token) {
-      // Jika token tidak ada, kembalikan ke halaman login
-      router.push("/");
-    } else {
-      setIsAuthorized(true);
-    }
-  }, [router]);
+    // Memastikan browser siap membaca localStorage
+    setIsReady(true);
+  }, []);
 
-  if (!isAuthorized) {
+  if (!isReady) {
     return (
-      <div className="min-h-screen bg-[#182B4E] flex items-center justify-center text-white font-medium">
-        Memeriksa hak akses...
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#1A2E53] text-white">
+        Memuat Dashboard...
       </div>
     );
   }
