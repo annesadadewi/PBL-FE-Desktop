@@ -5,16 +5,15 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get("token")?.value;
   const { pathname } = request.nextUrl;
 
-  // Jika token kosong atau "undefined", jangan lakukan redirect ke dashboard
-  const isAuthenticated = Boolean(token && token !== "undefined" && token !== "null");
+  const hasValidToken = Boolean(token && token !== "undefined" && token !== "null");
 
-  // Jika sudah login dan mencoba ke halaman login (/), alihkan ke dashboard
-  if (isAuthenticated && pathname === "/") {
+  // 1. Jika sudah login tapi coba buka halaman login ("/"), alihkan ke /dashboard
+  if (hasValidToken && pathname === "/") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // Jika belum login dan mencoba ke dashboard, alihkan ke login
-  if (!isAuthenticated && pathname.startsWith("/dashboard")) {
+  // 2. Jika BELUM login dan coba buka halaman APAPUN selain "/", paksa balik ke halaman login
+  if (!hasValidToken && pathname !== "/") {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
@@ -22,5 +21,9 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/dashboard/:path*"],
+  /*
+   * Matcher ini mengunci SEMUA rute (termasuk /kelas-saya, /kehadiran, /penilaian, /evaluator, dll)
+   * kecuali file sistem Next.js, gambar, dan API.
+   */
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };
