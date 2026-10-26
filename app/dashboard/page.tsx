@@ -23,16 +23,25 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Fungsi Logout
+  // PERBAIKAN: Fungsi Logout Total (Membersihkan Cookie & LocalStorage)
   const handleLogout = async () => {
     try {
-      await apiFetch("/auth/logout", { method: "POST" }); //
+      await apiFetch("/auth/logout", { method: "POST" }); //[cite: 2]
     } catch (err) {
       console.error("Gagal logout di server:", err);
     } finally {
+      // 1. Hapus seluruh data di LocalStorage
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      router.push("/"); // Kembali ke halaman login
+      localStorage.clear();
+
+      // 2. PERBAIKAN UTAMA: Hapus Cookie "token" agar Middleware tidak menolak akses ke halaman login
+      document.cookie = "token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT;";
+      document.cookie = "token=; path=/dashboard; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT;";
+      document.cookie = "token=; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT;";
+
+      // 3. Pindah langsung ke halaman login (menggunakan window.location.href agar state Next.js bersih total)
+      window.location.href = "/";
     }
   };
 

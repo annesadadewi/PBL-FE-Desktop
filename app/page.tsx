@@ -39,9 +39,12 @@ export default function LoginPage() {
         setUserRole(user?.role || res?.role || "Pengguna");
         setShowRoleModal(true);
       } else if (token) {
-        // JIKA DOSEN: Simpan token & redirect ke Dashboard
+        // JIKA DOSEN: Simpan token di localStorage & Cookie
         localStorage.setItem("token", token);
         if (user) localStorage.setItem("user", JSON.stringify(user));
+
+        // PENAMBAHAN COOKIE: Disimpan agar dibaca oleh Middleware Next.js
+        document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax`;
 
         window.location.href = "/dashboard";
       } else {
