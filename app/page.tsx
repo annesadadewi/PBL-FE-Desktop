@@ -156,6 +156,10 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-5 py-3 rounded-xl bg-[#3B6DB3] dark:bg-blue-800 text-white placeholder-blue-200/60 focus:outline-none focus:ring-2 focus:ring-blue-400 font-medium text-base transition-all"
               />
+
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                Minimal 8–12 karakter dengan kombinasi huruf besar, huruf kecil, angka, dan simbol.
+              </p>
             </div>
 
             <div className="pt-6 flex flex-col items-center gap-4">
