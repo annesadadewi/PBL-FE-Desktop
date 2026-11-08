@@ -4,8 +4,9 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Sun, Moon, CheckCircle2, X } from "lucide-react";
+import { Sun, Moon, CheckCircle2, X, Trash2, Loader2 } from "lucide-react";
 import CustomSelect from "@/components/CustomSelect";
+import { apiFetch } from "@/lib/api";
 
 // Tipe Data Tugas
 interface Task {
@@ -18,114 +19,143 @@ interface Task {
   status: "Belum Dinilai" | "Berjalan";
 }
 
-const initialTasks: Task[] = [
-  {
-    id: 1,
-    subject: "Kecerdasan Buatan",
-    title: "Proyek Klasifikasi Data",
-    dueDate: "2026-10-08",
-    submittedCount: 26,
-    totalStudents: 32,
-    status: "Belum Dinilai",
-  },
-  {
-    id: 2,
-    subject: "Pemrograman Framework",
-    title: "Arsitektur MVC",
-    dueDate: "2026-10-04",
-    submittedCount: 25,
-    totalStudents: 28,
-    status: "Berjalan",
-  },
-  {
-    id: 3,
-    subject: "Mobile",
-    title: "Integrasi REST API",
-    dueDate: "2026-10-12",
-    submittedCount: 18,
-    totalStudents: 24,
-    status: "Belum Dinilai",
-  },
-  {
-    id: 4,
-    subject: "Jaringan Komputer",
-    title: "Jaringan LAN & WAN",
-    dueDate: "2026-11-01",
-    submittedCount: 0,
-    totalStudents: 0,
-    status: "Berjalan",
-  },
-];
-
-const navItems = [
-  { name: "Dashboard", href: "/dashboard" },
-  { name: "Kelas Saya", href: "/kelas-saya" },
-  { name: "Kehadiran", href: "/kehadiran" },
-  { name: "Penilaian", href: "/penilaian" },
-  { name: "AI Student Evaluator", href: "/evaluator" },
-  { name: "Tugas", href: "/tugas" },
-  { name: "Kalender Akademik", href: "/kalender" },
-  { name: "Pengaturan", href: "/pengaturan" },
-];
-
-const classOptions = [
-  "Kecerdasan Buatan - A",
-  "Pemrograman Framework - A",
-  "Mobile - D",
-  "Jaringan Komputer - G",
-];
-
 export default function TugasPage() {
-const { theme, setTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
 
-  // State
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  // State List Kelas dari Backend
+  const [classList, setClassList] = useState<any[]>([]);
+  
+  // State Data Tugas
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<string>("Semua Status");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // State Loading & Submit
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   // Form State Modal
   const [newTitle, setNewTitle] = useState("");
-  const [newClass, setNewClass] = useState(classOptions[0]);
+  const [newClassId, setNewClassId] = useState<number>(1);
   const [newDueDate, setNewDueDate] = useState("");
+  const [newDescription, setNewDescription] = useState("");
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // 1. Fetch List Kelas dari Backend
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        const res = await apiFetch("/classes", { method: "GET" });
+        const data = Array.isArray(res) ? res : res.data || [];
+        setClassList(data);
+        if (data.length > 0) {
+          setNewClassId(data[0].id || 1);
+        }
+      } catch (err: any) {
+        console.error("Gagal mengambil data kelas:", err);
+      }
+    };
+    fetchClasses();
+  }, []);
+
+  // 2. Fetch Data Tugas dari Backend Express (READ)
+  const fetchTasks = async () => {
+    try {
+      setLoading(true);
+      setErrorMsg("");
+      const res = await apiFetch("/tugas", { method: "GET" });
+      const data = Array.isArray(res) ? res : res.data || [];
+
+      // Map data backend ke format UI Task
+      const mappedTasks: Task[] = data.map((item: any) => ({
+        id: item.id,
+        subject: item.subject || item.nama_kelas || "Kecerdasan Buatan",
+        title: item.title,
+        dueDate: item.deadline,
+        submittedCount: item.submitted_count || 0,
+        totalStudents: item.total_students || 30,
+        status: item.status || "Berjalan",
+      }));
+
+      // Jika database masih kosong, sediakan mock data awal agar layar tidak kosong
+      if (mappedTasks.length === 0) {
+        setTasks([
+          { id: 1, subject: "Kecerdasan Buatan", title: "Proyek Klasifikasi Data", dueDate: "2026-10-08", submittedCount: 26, totalStudents: 32, status: "Belum Dinilai" },
+          { id: 2, subject: "Pemrograman Framework", title: "Arsitektur MVC", dueDate: "2026-10-04", submittedCount: 25, totalStudents: 28, status: "Berjalan" },
+          { id: 3, subject: "Mobile", title: "Integrasi REST API", dueDate: "2026-10-12", submittedCount: 18, totalStudents: 24, status: "Belum Dinilai" },
+        ]);
+      } else {
+        setTasks(mappedTasks);
+      }
+    } catch (err: any) {
+      console.error("Gagal mengambil data tugas:", err);
+      setErrorMsg("Gagal memuat daftar tugas dari server.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
+  // 3. Handle Tambah Tugas Baru (CREATE)
+  const handleSaveTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim() || !newDueDate) {
+      alert("Harap isi Judul Tugas dan Tenggat!");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      await apiFetch("/tugas", {
+        method: "POST",
+        body: JSON.stringify({
+          class_id: newClassId,
+          title: newTitle,
+          description: newDescription || "Tugas reguler praktikum",
+          deadline: newDueDate,
+        }),
+      });
+
+      // Reset & Refresh Data
+      setIsModalOpen(false);
+      setNewTitle("");
+      setNewDueDate("");
+      setNewDescription("");
+      fetchTasks();
+    } catch (err: any) {
+      alert(err.message || "Gagal membuat tugas baru");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // 4. Handle Hapus Tugas (DELETE)
+  const handleDeleteTask = async (id: number, title: string) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus tugas "${title}"?`)) return;
+
+    try {
+      await apiFetch(`/tugas/${id}`, { method: "DELETE" });
+      fetchTasks();
+    } catch (err: any) {
+      alert(err.message || "Gagal menghapus tugas");
+    }
+  };
 
   // Filter Tugas Berdasarkan Status
   const filteredTasks = tasks.filter((task) => {
     if (selectedStatus === "Semua Status") return true;
     return task.status === selectedStatus;
   });
-
-  // Handle Tambah Tugas Baru
-  const handleSaveTask = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle || !newDueDate) {
-      alert("Harap isi semua bidang input!");
-      return;
-    }
-
-    const subjectName = newClass.split(" - ")[0];
-
-    const newTaskObj: Task = {
-      id: Date.now(),
-      subject: subjectName,
-      title: newTitle,
-      dueDate: newDueDate,
-      submittedCount: 0,
-      totalStudents: 30,
-      status: "Berjalan",
-    };
-
-    setTasks([newTaskObj, ...tasks]);
-    setIsModalOpen(false);
-    setNewTitle("");
-    setNewDueDate("");
-  };
 
   return (
     <div className="flex h-screen bg-slate-100 dark:bg-black text-slate-900 dark:text-white overflow-hidden font-sans transition-colors duration-200">
@@ -307,7 +337,6 @@ const { theme, setTheme } = useTheme();
           </div>
         </header>
 
-
         {/* 3. KONTEN UTAMA TUGAS */}
         <main className="flex-1 overflow-y-auto p-8 space-y-6 bg-slate-50 dark:bg-black">
           {/* Title Header & Tombol Tambah Tugas */}
@@ -330,45 +359,64 @@ const { theme, setTheme } = useTheme();
           </div>
 
           {/* Filter Dropdown Status */}
-<div className="w-44">
-  <CustomSelect
-    options={["Semua Status", "Belum Dinilai", "Berjalan"]}
-    value={selectedStatus}
-    onChange={(val) => setSelectedStatus(val)}
-  />
-</div>
+          <div className="w-44">
+            <CustomSelect
+              options={["Semua Status", "Belum Dinilai", "Berjalan"]}
+              value={selectedStatus}
+              onChange={(val) => setSelectedStatus(val)}
+            />
+          </div>
+
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center gap-3 py-12 justify-center text-slate-500 dark:text-slate-400 text-sm font-medium">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Memuat data tugas dari database...</span>
+            </div>
+          )}
 
           {/* Grid Card Tugas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTasks.map((task) => (
-              <div
-                key={task.id}
-                className="bg-[#C2D9FF] p-6 rounded-2xl flex flex-col justify-between h-48 text-slate-900 shadow-sm"
-              >
-                <div>
-                  <p className="text-xs text-slate-700 font-medium">{task.subject}</p>
-                  <h3 className="text-base font-bold text-slate-950 mt-1">
-                    {task.title}
-                  </h3>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="text-xs text-slate-600 font-medium space-y-0.5">
-                    <p>Tenggat: {task.dueDate}</p>
-                    <p>
-                      Sudah mengumpulkan: {task.submittedCount}/{task.totalStudents}
-                    </p>
-                  </div>
-
+          {!loading && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredTasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="bg-[#C2D9FF] p-6 rounded-2xl flex flex-col justify-between h-48 text-slate-900 shadow-sm relative group"
+                >
                   <div>
-                    <span className="inline-block bg-white text-slate-800 text-[11px] font-semibold px-3 py-1 rounded-full shadow-xs">
-                      {task.status}
-                    </span>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-slate-700 font-medium">{task.subject}</p>
+                      <button
+                        onClick={() => handleDeleteTask(task.id, task.title)}
+                        className="text-red-600 hover:text-red-800 p-1 transition-colors cursor-pointer"
+                        title="Hapus Tugas"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <h3 className="text-base font-bold text-slate-950 mt-1">
+                      {task.title}
+                    </h3>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="text-xs text-slate-600 font-medium space-y-0.5">
+                      <p>Tenggat: {task.dueDate}</p>
+                      <p>
+                        Sudah mengumpulkan: {task.submittedCount}/{task.totalStudents}
+                      </p>
+                    </div>
+
+                    <div>
+                      <span className="inline-block bg-white text-slate-800 text-[11px] font-semibold px-3 py-1 rounded-full shadow-xs">
+                        {task.status}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </main>
       </div>
 
@@ -400,21 +448,26 @@ const { theme, setTheme } = useTheme();
                   onChange={(e) => setNewTitle(e.target.value)}
                   placeholder="Masukkan judul tugas..."
                   className="w-full bg-[#BFDBFE] text-slate-900 placeholder-slate-500 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl focus:outline-none font-medium"
+                  required
                 />
               </div>
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700">Kelas</label>
                 <select
-                  value={newClass}
-                  onChange={(e) => setNewClass(e.target.value)}
+                  value={newClassId}
+                  onChange={(e) => setNewClassId(Number(e.target.value))}
                   className="w-full bg-[#BFDBFE] text-slate-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl focus:outline-none font-medium cursor-pointer"
                 >
-                  {classOptions.map((cls) => (
-                    <option key={cls} value={cls}>
-                      {cls}
-                    </option>
-                  ))}
+                  {classList.length > 0 ? (
+                    classList.map((cls) => (
+                      <option key={cls.id} value={cls.id}>
+                        {cls.name} {cls.classRoom ? `- ${cls.classRoom}` : ""}
+                      </option>
+                    ))
+                  ) : (
+                    <option value={1}>Pemrograman Framework - Kelas A</option>
+                  )}
                 </select>
               </div>
 
@@ -425,14 +478,17 @@ const { theme, setTheme } = useTheme();
                   value={newDueDate}
                   onChange={(e) => setNewDueDate(e.target.value)}
                   className="w-full bg-[#BFDBFE] text-slate-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl focus:outline-none font-medium cursor-pointer"
+                  required
                 />
               </div>
 
               <button
                 type="submit"
-                className="bg-[#2B4B7C] hover:bg-[#1e365a] text-white text-xs sm:text-sm font-semibold px-5 py-2.5 rounded-xl shadow-md transition-all cursor-pointer mt-2"
+                disabled={submitting}
+                className="bg-[#2B4B7C] hover:bg-[#1e365a] text-white text-xs sm:text-sm font-semibold px-5 py-2.5 rounded-xl shadow-md transition-all cursor-pointer mt-2 flex items-center gap-2"
               >
-                Simpan Tugas
+                {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Simpan Tugas</span>
               </button>
             </form>
           </div>

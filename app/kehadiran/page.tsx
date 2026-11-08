@@ -1,21 +1,22 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Sun, Moon, CheckCircle2, ChevronDown, X } from "lucide-react";
+import { Sun, Moon, CheckCircle2, ChevronDown, X, Loader2 } from "lucide-react";
 import CustomSelect from "@/components/CustomSelect";
+import { apiFetch } from "@/lib/api";
 
 interface Student {
   id: string;
   name: string;
   nim: string;
   status: "Hadir" | "Izin" | "Sakit" | "Alpha";
-  course: string;
-  finalScore: number;
-  gradeHistory: string;
-  notes: string;
+  course?: string;
+  finalScore?: number;
+  gradeHistory?: string;
+  notes?: string;
 }
 
 export default function KehadiranPage() {
@@ -23,69 +24,86 @@ export default function KehadiranPage() {
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const pathname = usePathname();
 
-  // Filter States
-  const [selectedCourse, setSelectedCourse] = useState("Pemrograman Framework - Kelas A");
-  const [selectedMeeting, setSelectedMeeting] = useState("Pertemuan 7");
+  // State List Kelas dari Backend
+  const [classList, setClassList] = useState<any[]>([]);
+  const [selectedCourse, setSelectedCourse] = useState("");
+  const [selectedMeeting, setSelectedMeeting] = useState("Pertemuan 1");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Loading & Saving State
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   // Modal State
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
-  // Data Mahasiswa
-  const [students, setStudents] = useState<Student[]>([
-    {
-      id: "1",
-      name: "Anne Sada Dewi",
-      nim: "20XX001",
-      status: "Hadir",
-      course: "Pemrograman Framework",
-      finalScore: 87.5,
-      gradeHistory: "Tugas 90 · Kuis 82 · UTS 85 · UAS 90",
-      notes: "Menunjukkan konsistensi baik dalam diskusi",
-    },
-    {
-      id: "2",
-      name: "Sheren Annabelle",
-      nim: "20XX002",
-      status: "Hadir",
-      course: "Pemrograman Framework",
-      finalScore: 85.0,
-      gradeHistory: "Tugas 88 · Kuis 80 · UTS 84 · UAS 88",
-      notes: "Aktif dan tepat waktu mengumpulkan tugas",
-    },
-    {
-      id: "3",
-      name: "Kayla Indah Pasha",
-      nim: "20XX003",
-      status: "Hadir",
-      course: "Pemrograman Framework",
-      finalScore: 90.0,
-      gradeHistory: "Tugas 92 · Kuis 88 · UTS 90 · UAS 90",
-      notes: "Memiliki pemahaman konsep yang sangat mendalam",
-    },
-    {
-      id: "4",
-      name: "Aulia Sabillah",
-      nim: "20XX004",
-      status: "Hadir",
-      course: "Pemrograman Framework",
-      finalScore: 82.5,
-      gradeHistory: "Tugas 85 · Kuis 78 · UTS 80 · UAS 87",
-      notes: "Perlu ditingkatkan pada partisipasi praktikum",
-    },
-    {
-      id: "5",
-      name: "Silvi Caroline Zebua",
-      nim: "20XX005",
-      status: "Hadir",
-      course: "Pemrograman Framework",
-      finalScore: 88.0,
-      gradeHistory: "Tugas 90 · Kuis 85 · UTS 86 · UAS 91",
-      notes: "Sangat responsif saat tanya jawab di kelas",
-    },
-  ]);
+  // Data Mahasiswa Presensi
+  const [students, setStudents] = useState<Student[]>([]);
 
-  // Handler ubah status per mahasiswa
+  // 1. Fetch List Kelas untuk Dropdown
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        const res = await apiFetch("/classes", { method: "GET" });
+        const data = Array.isArray(res) ? res : res.data || [];
+        setClassList(data);
+        if (data.length > 0) {
+          const defaultName = data[0].name + (data[0].classRoom ? ` - ${data[0].classRoom}` : "");
+          setSelectedCourse(defaultName);
+        }
+      } catch (err: any) {
+        console.error("Gagal mengambil data kelas:", err);
+      }
+    };
+    fetchClasses();
+  }, []);
+
+  // 2. Fetch Data Kehadiran dari Backend Express
+  const fetchKehadiran = async () => {
+    try {
+      setLoading(true);
+      setErrorMsg("");
+      const res = await apiFetch("/kehadiran", { method: "GET" });
+      const data = Array.isArray(res) ? res : res.data || [];
+      
+      // Map data backend ke format interface Student
+      const mappedStudents: Student[] = data.map((item: any) => ({
+        id: String(item.id),
+        name: item.student_name || item.name || "Mahasiswa",
+        nim: item.nim || "20XX001",
+        status: (item.status === "Alpa" ? "Alpha" : item.status) || "Hadir",
+        course: selectedCourse,
+        finalScore: 85.0,
+        gradeHistory: "Tugas 88 · Kuis 80 · UTS 84 · UAS 88",
+        notes: "Aktif dan tepat waktu mengumpulkan tugas",
+      }));
+
+      // Jika database masih kosong data kehadiran, gunakan data default agar UI tidak hampa
+      if (mappedStudents.length === 0) {
+        setStudents([
+          { id: "1", name: "Anne Sada Dewi", nim: "220101001", status: "Hadir", course: selectedCourse, finalScore: 87.5, gradeHistory: "Tugas 90 · Kuis 82 · UTS 85 · UAS 90", notes: "Menunjukkan konsistensi baik dalam diskusi" },
+          { id: "2", name: "Sheren Annabelle", nim: "220101002", status: "Hadir", course: selectedCourse, finalScore: 85.0, gradeHistory: "Tugas 88 · Kuis 80 · UTS 84 · UAS 88", notes: "Aktif dan tepat waktu mengumpulkan tugas" },
+          { id: "3", name: "Kayla Indah Pasha", nim: "220101003", status: "Hadir", course: selectedCourse, finalScore: 90.0, gradeHistory: "Tugas 92 · Kuis 88 · UTS 90 · UAS 90", notes: "Memiliki pemahaman konsep yang sangat mendalam" },
+          { id: "4", name: "Aulia Sabillah", nim: "220101004", status: "Hadir", course: selectedCourse, finalScore: 82.5, gradeHistory: "Tugas 85 · Kuis 78 · UTS 80 · UAS 87", notes: "Perlu ditingkatkan pada partisipasi praktikum" },
+          { id: "5", name: "Silvi Caroline Zebua", nim: "220101005", status: "Hadir", course: selectedCourse, finalScore: 88.0, gradeHistory: "Tugas 90 · Kuis 85 · UTS 86 · UAS 91", notes: "Sangat responsif saat tanya jawab di kelas" },
+        ]);
+      } else {
+        setStudents(mappedStudents);
+      }
+    } catch (err: any) {
+      console.error("Gagal memuat kehadiran:", err);
+      setErrorMsg("Gagal memuat data presensi dari server.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchKehadiran();
+  }, [selectedCourse, selectedMeeting]);
+
+  // Handler ubah status per mahasiswa di state lokal
   const handleStatusChange = (
     id: string,
     newStatus: "Hadir" | "Izin" | "Sakit" | "Alpha"
@@ -100,6 +118,31 @@ export default function KehadiranPage() {
     setStudents((prev) => prev.map((s) => ({ ...s, status: "Hadir" })));
   };
 
+  // 3. Simpan Kehadiran ke Backend Database MySQL
+  const handleSaveAttendance = async () => {
+    try {
+      setSaving(true);
+      // Kirim setiap data mahasiswa ke backend
+      const savePromises = students.map((student) =>
+        apiFetch("/kehadiran", {
+          method: "POST",
+          body: JSON.stringify({
+            class_id: 1,
+            student_name: student.name,
+            status: student.status === "Alpha" ? "Alpa" : student.status,
+            date: new Date().toISOString().split("T")[0],
+          }),
+        })
+      );
+      await Promise.all(savePromises);
+      alert("Data kehadiran berhasil disimpan ke database!");
+    } catch (err: any) {
+      alert(err.message || "Gagal menyimpan data kehadiran");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Filter pencarian
   const filteredStudents = students.filter(
     (s) =>
@@ -111,6 +154,16 @@ export default function KehadiranPage() {
   const countStatus = (statusType: "Hadir" | "Izin" | "Sakit" | "Alpha") => {
     return filteredStudents.filter((s) => s.status === statusType).length;
   };
+
+  // Pilihan nama kelas untuk CustomSelect
+  const courseOptions = classList.length > 0
+    ? classList.map((c) => (c.name + (c.classRoom ? ` - ${c.classRoom}` : "")))
+    : [
+        "Pemrograman Framework - Kelas A",
+        "Mobile - Kelas D",
+        "Kecerdasan Buatan - Kelas C",
+        "Jaringan Komputer - Kelas G",
+      ];
 
   return (
     <div className="min-h-screen bg-white dark:bg-black text-slate-900 dark:text-white flex flex-col md:flex-row font-sans transition-colors duration-200">
@@ -321,9 +374,12 @@ export default function KehadiranPage() {
               </button>
               <button
                 type="button"
-                className="px-5 py-2.5 rounded-xl bg-[#294371] hover:bg-blue-900 text-white font-semibold text-xs shadow-sm transition-all cursor-pointer"
+                onClick={handleSaveAttendance}
+                disabled={saving}
+                className="px-5 py-2.5 rounded-xl bg-[#294371] hover:bg-blue-900 text-white font-semibold text-xs shadow-sm transition-all cursor-pointer flex items-center gap-2"
               >
-                Simpan Kehadiran
+                {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Simpan Kehadiran</span>
               </button>
             </div>
           </div>
@@ -335,18 +391,13 @@ export default function KehadiranPage() {
               <label className="text-xs font-semibold text-slate-700">
                 Mata Kuliah
               </label>
-<div className="relative">
-  <CustomSelect
-    options={[
-      "Pemrograman Framework - Kelas A",
-      "Mobile - Kelas D",
-      "Kecerdasan Buatan - Kelas C",
-      "Jaringan Komputer - Kelas G",
-    ]}
-    value={selectedCourse}
-    onChange={(val) => setSelectedCourse(val)}
-  />
-</div>
+              <div className="relative">
+                <CustomSelect
+                  options={courseOptions}
+                  value={selectedCourse}
+                  onChange={(val) => setSelectedCourse(val)}
+                />
+              </div>
             </div>
 
             {/* Filter 2: Pertemuan */}
@@ -354,21 +405,21 @@ export default function KehadiranPage() {
               <label className="text-xs font-semibold text-slate-700">
                 Pertemuan
               </label>
-<div className="relative">
-  <CustomSelect
-    options={[
-      "Pertemuan 7",
-      "Pertemuan 6",
-      "Pertemuan 5",
-      "Pertemuan 4",
-      "Pertemuan 3",
-      "Pertemuan 2",
-      "Pertemuan 1",
-    ]}
-    value={selectedMeeting}
-    onChange={(val) => setSelectedMeeting(val)}
-  />
-</div>
+              <div className="relative">
+                <CustomSelect
+                  options={[
+                    "Pertemuan 7",
+                    "Pertemuan 6",
+                    "Pertemuan 5",
+                    "Pertemuan 4",
+                    "Pertemuan 3",
+                    "Pertemuan 2",
+                    "Pertemuan 1",
+                  ]}
+                  value={selectedMeeting}
+                  onChange={(val) => setSelectedMeeting(val)}
+                />
+              </div>
             </div>
 
             {/* Filter 3: Cari Mahasiswa */}
@@ -423,68 +474,78 @@ export default function KehadiranPage() {
             </div>
           </div>
 
-          {/* TABLE CONTAINER */}
-          <div className="bg-[#CBE0FE] rounded-2xl overflow-hidden shadow-sm">
-            {/* Table Header */}
-            <div className="bg-[#182B4E] text-white px-6 py-4 grid grid-cols-12 text-xs font-bold tracking-wider">
-              <div className="col-span-4">Mahasiswa</div>
-              <div className="col-span-3">NIM</div>
-              <div className="col-span-3">Status Kehadiran</div>
-              <div className="col-span-2 text-right pr-4">Lihat Detail</div>
+          {/* LOADING STATE */}
+          {loading && (
+            <div className="flex items-center gap-3 py-12 justify-center text-slate-500 dark:text-slate-400 text-sm font-medium">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Memuat data presensi dari database...</span>
             </div>
+          )}
 
-            {/* Table Rows */}
-            <div className="divide-y divide-blue-200/60">
-              {filteredStudents.length > 0 ? (
-                filteredStudents.map((s) => (
-                  <div
-                    key={s.id}
-                    className="px-6 py-3.5 grid grid-cols-12 items-center text-xs font-semibold text-slate-900"
-                  >
-                    <div className="col-span-4 font-bold">{s.name}</div>
-                    <div className="col-span-3 text-slate-700">{s.nim}</div>
-                    
-                    {/* Select Status Dropdown */}
-                    <div className="col-span-3">
-                      <div className="relative inline-block w-28">
-                        <select
-                          value={s.status}
-                          onChange={(e) =>
-                            handleStatusChange(
-                              s.id,
-                              e.target.value as "Hadir" | "Izin" | "Sakit" | "Alpha"
-                            )
-                          }
-                          className="w-full bg-white text-slate-900 text-xs font-semibold py-1.5 px-3 rounded-lg border border-slate-300 shadow-sm appearance-none pr-7 focus:outline-none cursor-pointer"
+          {/* TABLE CONTAINER */}
+          {!loading && (
+            <div className="bg-[#CBE0FE] rounded-2xl overflow-hidden shadow-sm">
+              {/* Table Header */}
+              <div className="bg-[#182B4E] text-white px-6 py-4 grid grid-cols-12 text-xs font-bold tracking-wider">
+                <div className="col-span-4">Mahasiswa</div>
+                <div className="col-span-3">NIM</div>
+                <div className="col-span-3">Status Kehadiran</div>
+                <div className="col-span-2 text-right pr-4">Lihat Detail</div>
+              </div>
+
+              {/* Table Rows */}
+              <div className="divide-y divide-blue-200/60">
+                {filteredStudents.length > 0 ? (
+                  filteredStudents.map((s) => (
+                    <div
+                      key={s.id}
+                      className="px-6 py-3.5 grid grid-cols-12 items-center text-xs font-semibold text-slate-900"
+                    >
+                      <div className="col-span-4 font-bold">{s.name}</div>
+                      <div className="col-span-3 text-slate-700">{s.nim}</div>
+                      
+                      {/* Select Status Dropdown */}
+                      <div className="col-span-3">
+                        <div className="relative inline-block w-28">
+                          <select
+                            value={s.status}
+                            onChange={(e) =>
+                              handleStatusChange(
+                                s.id,
+                                e.target.value as "Hadir" | "Izin" | "Sakit" | "Alpha"
+                              )
+                            }
+                            className="w-full bg-white text-slate-900 text-xs font-semibold py-1.5 px-3 rounded-lg border border-slate-300 shadow-sm appearance-none pr-7 focus:outline-none cursor-pointer"
+                          >
+                            <option value="Hadir">Hadir</option>
+                            <option value="Izin">Izin</option>
+                            <option value="Sakit">Sakit</option>
+                            <option value="Alpha">Alpha</option>
+                          </select>
+                          <ChevronDown className="w-3.5 h-3.5 text-slate-600 absolute right-2 top-2 pointer-events-none" />
+                        </div>
+                      </div>
+
+                      {/* Button Detail */}
+                      <div className="col-span-2 text-right pr-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedStudent(s)}
+                          className="text-blue-700 hover:text-blue-900 font-semibold hover:underline cursor-pointer"
                         >
-                          <option value="Hadir">Hadir</option>
-                          <option value="Izin">Izin</option>
-                          <option value="Sakit">Sakit</option>
-                          <option value="Alpha">Alpha</option>
-                        </select>
-                        <ChevronDown className="w-3.5 h-3.5 text-slate-600 absolute right-2 top-2 pointer-events-none" />
+                          Lihat Detail
+                        </button>
                       </div>
                     </div>
-
-                    {/* Button Detail */}
-                    <div className="col-span-2 text-right pr-2">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedStudent(s)}
-                        className="text-blue-700 hover:text-blue-900 font-semibold hover:underline cursor-pointer"
-                      >
-                        Lihat Detail
-                      </button>
-                    </div>
+                  ))
+                ) : (
+                  <div className="p-8 text-center text-xs text-slate-600">
+                    Tidak ada data mahasiswa ditemukan.
                   </div>
-                ))
-              ) : (
-                <div className="p-8 text-center text-xs text-slate-600">
-                  Tidak ada data mahasiswa ditemukan.
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* ---------------- MODAL DETAIL MAHASISWA ---------------- */}
           {selectedStudent && (
@@ -518,7 +579,7 @@ export default function KehadiranPage() {
                       {selectedStudent.name}
                     </h4>
                     <p className="text-xs text-slate-700 mt-0.5 font-medium">
-                      {selectedStudent.nim} - {selectedStudent.course}
+                      {selectedStudent.nim} • {selectedStudent.course}
                     </p>
                   </div>
 

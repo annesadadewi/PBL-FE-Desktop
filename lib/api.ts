@@ -1,7 +1,12 @@
 const API_BASE_URL = "http://localhost:5001/api";
 
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  // Ambil token dari cookie atau localStorage
+  let token: string | null = null;
+  if (typeof window !== "undefined") {
+    token = localStorage.getItem("token") || 
+      document.cookie.split("; ").find(row => row.startsWith("token="))?.split("=")[1] || null;
+  }
 
   const headers: HeadersInit = {
     "Content-Type": "application/json",

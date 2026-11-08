@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sun, Moon } from "lucide-react";
+import { Sun, Moon, CheckCircle2 } from "lucide-react";
 import { useTheme } from "next-themes";
 
 const navItems = [

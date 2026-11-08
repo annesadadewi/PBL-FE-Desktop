@@ -1,55 +1,91 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Sun, Moon, CheckCircle2 } from "lucide-react";
+import { Sun, Moon, CheckCircle2, Plus, Trash2, Loader2 } from "lucide-react";
+import { apiFetch } from "@/lib/api";
 
 export default function KelasSayaPage() {
   const { theme, setTheme } = useTheme();
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const pathname = usePathname();
 
-  // Data Kelas
-  const myClasses = [
-    {
-      id: "PFA3",
-      name: "Pemrograman Framework",
-      classCode: "Kelas A",
-      students: "30 Mahasiswa",
-      schedule: "Senin 10.20-13.00",
-      progress: "75% selesai",
-      progressBg: "bg-lime-400 text-slate-900",
-    },
-    {
-      id: "MD3",
-      name: "Mobile",
-      classCode: "Kelas D",
-      students: "32 Mahasiswa",
-      schedule: "Rabu 10.20-13.00",
-      progress: "82% selesai",
-      progressBg: "bg-lime-300 text-slate-900",
-    },
-    {
-      id: "KBC3",
-      name: "Kecerdasan Buatan",
-      classCode: "Kelas C",
-      students: "24 Mahasiswa",
-      schedule: "Selasa 14.40-16.30",
-      progress: "80% selesai",
-      progressBg: "bg-lime-300 text-slate-900",
-    },
-    {
-      id: "M20",
-      name: "Jaringan Komputer",
-      classCode: "Kelas D",
-      students: "30 Mahasiswa",
-      schedule: "Rabu 10.25-12.00",
-      progress: "56% selesai",
-      progressBg: "bg-yellow-300 text-slate-900",
-    },
-  ];
+  // State Data Kelas dari Backend Database
+  const [myClasses, setMyClasses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  // State Form Tambah Kelas Baru (Create)
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [name, setName] = useState("");
+  const [classCode, setClassCode] = useState("");
+  const [students, setStudents] = useState("");
+  const [schedule, setSchedule] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // 1. READ: Tarik data kelas dari API Backend
+  const fetchClasses = async () => {
+    try {
+      setLoading(true);
+      setErrorMsg("");
+      const data = await apiFetch("/classes", { method: "GET" });
+      setMyClasses(Array.isArray(data) ? data : data.data || []);
+    } catch (err: any) {
+      console.error("Gagal mengambil data kelas:", err);
+      setErrorMsg(err.message || "Gagal memuat data kelas dari server.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchClasses();
+  }, []);
+
+  // 2. CREATE: Tambah kelas baru ke Backend Database (Diselaraskan dengan Backend)
+  const handleCreateClass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+
+    try {
+      setSubmitting(true);
+      await apiFetch("/classes", {
+        method: "POST",
+        body: JSON.stringify({
+          name: name,                                             // Nama Mata Kuliah
+          code: classCode || "PFA3",                              // Properti 'code'
+          classRoom: students ? `Kelas ${students}` : "Kelas A",  // Properti 'classRoom'
+          schedule: schedule || "Jadwal belum diatur",            // Properti 'schedule'
+        }),
+      });
+
+      // Reset Form & Refresh Data
+      setName("");
+      setClassCode("");
+      setStudents("");
+      setSchedule("");
+      setShowAddForm(false);
+      fetchClasses();
+    } catch (err: any) {
+      alert(err.message || "Gagal membuat kelas baru");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // 3. DELETE: Hapus kelas dari Backend Database
+  const handleDeleteClass = async (id: string, className: string) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus kelas "${className}"?`)) return;
+
+    try {
+      await apiFetch(`/classes/${id}`, { method: "DELETE" });
+      fetchClasses(); // Refresh data setelah dihapus
+    } catch (err: any) {
+      alert(err.message || "Gagal menghapus kelas");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white dark:bg-black text-slate-900 dark:text-white flex flex-col md:flex-row font-sans transition-colors duration-200">
@@ -209,9 +245,8 @@ export default function KelasSayaPage() {
           </button>
         </div>
       </aside>
-      
-        
-        {/* TOP HEADER BAR (EXACT MATCH DASHBOARD & KEHADIRAN) */}
+
+      {/* TOP HEADER BAR & MAIN CONTENT */}
       <main className="flex-1 flex flex-col min-w-0 bg-white dark:bg-black transition-colors duration-200">
         
         {/* TOP HEADER BAR */}
@@ -234,57 +269,147 @@ export default function KelasSayaPage() {
           </div>
         </header>
 
-
         {/* CONTENT KELAS SAYA */}
         <div className="p-8 space-y-6 overflow-y-auto">
-          <div>
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              Manajemen Perkuliahan
-            </p>
-            <h2 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mt-1">
-              Kelas Saya
-            </h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Manajemen Perkuliahan
+              </p>
+              <h2 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mt-1">
+                Kelas Saya
+              </h2>
+            </div>
+
+            {/* Tombol Tambah Kelas (Create) */}
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#294371] hover:bg-blue-900 text-white font-semibold text-xs shadow-sm transition-all cursor-pointer w-fit"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{showAddForm ? "Batal" : "Tambah Kelas"}</span>
+            </button>
           </div>
 
-          {/* GRID KELAS SAYA */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {myClasses.map((item) => (
-              <div
-                key={item.id}
-                className="bg-[#CBE0FE] p-5 rounded-2xl flex flex-col justify-between space-y-4 shadow-sm"
-              >
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-700">
-                      {item.id}
-                    </span>
-                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md ${item.progressBg}`}>
-                      {item.progress}
-                    </span>
-                  </div>
-                  <h4 className="text-base font-bold text-slate-900 mt-2">
-                    {item.name}
-                  </h4>
-                  <p className="text-xs text-slate-700 font-medium">
-                    {item.classCode}
-                  </p>
-                  <p className="text-xs text-slate-700 font-medium mt-1">
-                    {item.students}
-                  </p>
-                  <p className="text-xs text-slate-600 mt-0.5">
-                    {item.schedule}
-                  </p>
-                </div>
-
-                <Link
-                  href="/kehadiran"
-                  className="w-fit px-5 py-2.5 rounded-xl bg-[#294371] hover:bg-blue-900 text-white font-semibold text-xs shadow-sm transition-all text-center cursor-pointer"
-                >
-                  Buka Kelas
-                </Link>
+          {/* Form Tambah Kelas Baru (Muncul saat tombol Tambah diklik) */}
+          {showAddForm && (
+            <form onSubmit={handleCreateClass} className="bg-[#CBE0FE] p-6 rounded-2xl space-y-4 shadow-sm text-slate-900">
+              <h3 className="text-sm font-bold text-slate-900">Form Tambah Kelas Baru</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  placeholder="Nama Mata Kuliah (misal: Pemrograman Framework)"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="p-3 bg-white rounded-xl text-xs text-black border border-blue-200 outline-none"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Kode Kelas (misal: PFA3)"
+                  value={classCode}
+                  onChange={(e) => setClassCode(e.target.value)}
+                  className="p-3 bg-white rounded-xl text-xs text-black border border-blue-200 outline-none"
+                />
+                <input
+                  type="text"
+                  placeholder="Ruangan / Nama Kelas (misal: Kelas A)"
+                  value={students}
+                  onChange={(e) => setStudents(e.target.value)}
+                  className="p-3 bg-white rounded-xl text-xs text-black border border-blue-200 outline-none"
+                />
+                <input
+                  type="text"
+                  placeholder="Jadwal (misal: Senin 10.20-13.00)"
+                  value={schedule}
+                  onChange={(e) => setSchedule(e.target.value)}
+                  className="p-3 bg-white rounded-xl text-xs text-black border border-blue-200 outline-none"
+                />
               </div>
-            ))}
-          </div>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-5 py-2.5 rounded-xl bg-[#294371] hover:bg-blue-900 text-white font-semibold text-xs transition-all cursor-pointer flex items-center gap-2"
+              >
+                {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Simpan ke Database</span>
+              </button>
+            </form>
+          )}
+
+          {/* Skenario Loading */}
+          {loading && (
+            <div className="flex items-center gap-3 py-12 justify-center text-slate-500 dark:text-slate-400 text-sm font-medium">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Memuat data kelas dari database backend...</span>
+            </div>
+          )}
+
+          {/* Skenario Error / Kosong */}
+          {!loading && errorMsg && (
+            <div className="p-4 bg-red-100 text-red-700 rounded-xl text-sm font-medium">
+              {errorMsg}
+            </div>
+          )}
+
+          {!loading && !errorMsg && myClasses.length === 0 && (
+            <div className="py-12 text-center text-slate-500 dark:text-slate-400 text-sm">
+              Belum ada data kelas di database. Klik tombol <strong>Tambah Kelas</strong> di atas untuk membuat kelas pertama!
+            </div>
+          )}
+
+          {/* GRID KELAS SAYA (READ FROM DATABASE & DELETE) */}
+          {!loading && myClasses.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {myClasses.map((item: any) => {
+                const itemId = item._id || item.id;
+                return (
+                  <div
+                    key={itemId}
+                    className="bg-[#CBE0FE] p-5 rounded-2xl flex flex-col justify-between space-y-4 shadow-sm relative group"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-700">
+                          {item.code || "KELAS"}
+                        </span>
+                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-md bg-lime-400 text-slate-900">
+                          75% selesai
+                        </span>
+                      </div>
+                      <h4 className="text-base font-bold text-slate-900 mt-2">
+                        {item.name}
+                      </h4>
+                      <p className="text-xs text-slate-700 font-medium mt-1">
+                        {item.classRoom || "Kelas Umum"}
+                      </p>
+                      <p className="text-xs text-slate-600 mt-0.5">
+                        {item.schedule || "Jadwal belum diatur"}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2">
+                      <Link
+                        href="/kehadiran"
+                        className="w-fit px-5 py-2.5 rounded-xl bg-[#294371] hover:bg-blue-900 text-white font-semibold text-xs shadow-sm transition-all text-center cursor-pointer"
+                      >
+                        Buka Kelas
+                      </Link>
+
+                      {/* Tombol Hapus Kelas (Delete) */}
+                      <button
+                        onClick={() => handleDeleteClass(itemId, item.name || "Kelas")}
+                        className="p-2 rounded-xl text-red-600 hover:bg-red-200/60 transition-all cursor-pointer"
+                        title="Hapus Kelas"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </main>
 
