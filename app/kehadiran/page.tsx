@@ -49,7 +49,9 @@ export default function KehadiranPage() {
         const data = Array.isArray(res) ? res : res.data || [];
         setClassList(data);
         if (data.length > 0) {
-          const defaultName = data[0].name + (data[0].classRoom ? ` - ${data[0].classRoom}` : "");
+          const defaultName =
+            (data[0].name || data[0].nama || "Kelas") +
+            (data[0].classRoom ? ` - ${data[0].classRoom}` : "");
           setSelectedCourse(defaultName);
         }
       } catch (err: any) {
@@ -59,27 +61,33 @@ export default function KehadiranPage() {
     fetchClasses();
   }, []);
 
-  // 2. Fetch Data Kehadiran dari Backend Express
+  // 2. Fetch Data Kehadiran dari Backend Express (Diselaraskan dengan Nama Properti Database)
   const fetchKehadiran = async () => {
     try {
       setLoading(true);
       setErrorMsg("");
       const res = await apiFetch("/kehadiran", { method: "GET" });
       const data = Array.isArray(res) ? res : res.data || [];
-      
-      // Map data backend ke format interface Student
-      const mappedStudents: Student[] = data.map((item: any) => ({
-        id: String(item.id),
-        name: item.student_name || item.name || "Mahasiswa",
-        nim: item.nim || "20XX001",
+
+      // Map data backend ke format interface Student dengan pengaman variasi nama
+      const mappedStudents: Student[] = data.map((item: any, idx: number) => ({
+        id: String(item.id || item._id || idx + 1),
+        name:
+          item.nama_mahasiswa ||
+          item.student_name ||
+          item.nama ||
+          item.name ||
+          item.user?.name ||
+          `Mahasiswa ${idx + 1}`,
+        nim: item.nim || item.nim_mahasiswa || `22010100${idx + 1}`,
         status: (item.status === "Alpa" ? "Alpha" : item.status) || "Hadir",
         course: selectedCourse,
-        finalScore: 85.0,
-        gradeHistory: "Tugas 88 · Kuis 80 · UTS 84 · UAS 88",
-        notes: "Aktif dan tepat waktu mengumpulkan tugas",
+        finalScore: item.finalScore || 85.0,
+        gradeHistory: item.gradeHistory || "Tugas 88 · Kuis 80 · UTS 84 · UAS 88",
+        notes: item.notes || "Aktif dan tepat waktu mengumpulkan tugas",
       }));
 
-      // Jika database masih kosong data kehadiran, gunakan data default agar UI tidak hampa
+      // Jika database backend belum punya data kehadiran sama sekali, berikan dummy fallback
       if (mappedStudents.length === 0) {
         setStudents([
           { id: "1", name: "Anne Sada Dewi", nim: "220101001", status: "Hadir", course: selectedCourse, finalScore: 87.5, gradeHistory: "Tugas 90 · Kuis 82 · UTS 85 · UAS 90", notes: "Menunjukkan konsistensi baik dalam diskusi" },
@@ -118,17 +126,17 @@ export default function KehadiranPage() {
     setStudents((prev) => prev.map((s) => ({ ...s, status: "Hadir" })));
   };
 
-  // 3. Simpan Kehadiran ke Backend Database MySQL
+  // 3. Simpan Kehadiran ke Backend Database
   const handleSaveAttendance = async () => {
     try {
       setSaving(true);
-      // Kirim setiap data mahasiswa ke backend
       const savePromises = students.map((student) =>
         apiFetch("/kehadiran", {
           method: "POST",
           body: JSON.stringify({
             class_id: 1,
             student_name: student.name,
+            nim: student.nim,
             status: student.status === "Alpha" ? "Alpa" : student.status,
             date: new Date().toISOString().split("T")[0],
           }),
@@ -156,14 +164,19 @@ export default function KehadiranPage() {
   };
 
   // Pilihan nama kelas untuk CustomSelect
-  const courseOptions = classList.length > 0
-    ? classList.map((c) => (c.name + (c.classRoom ? ` - ${c.classRoom}` : "")))
-    : [
-        "Pemrograman Framework - Kelas A",
-        "Mobile - Kelas D",
-        "Kecerdasan Buatan - Kelas C",
-        "Jaringan Komputer - Kelas G",
-      ];
+  const courseOptions =
+    classList.length > 0
+      ? classList.map(
+          (c) =>
+            (c.name || c.nama || "Kelas") +
+            (c.classRoom || c.kelas ? ` - ${c.classRoom || c.kelas}` : "")
+        )
+      : [
+          "Pemrograman Framework - Kelas A",
+          "Mobile - Kelas D",
+          "Kecerdasan Buatan - Kelas C",
+          "Jaringan Komputer - Kelas G",
+        ];
 
   return (
     <div className="min-h-screen bg-white dark:bg-black text-slate-900 dark:text-white flex flex-col md:flex-row font-sans transition-colors duration-200">
@@ -633,4 +646,4 @@ export default function KehadiranPage() {
 
     </div>
   );
-}
+}3
