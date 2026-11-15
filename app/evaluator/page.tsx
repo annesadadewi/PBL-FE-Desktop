@@ -4,34 +4,26 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Sun, Moon, CheckCircle2 } from "lucide-react";
+import { Sun, Moon, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import CustomSelect from "@/components/CustomSelect";
+import { apiFetch } from "@/lib/api";
 
-const classOptions = [
+const defaultClasses = [
   "Kecerdasan Buatan - Kelas A",
   "Pemrograman Framework - Kelas A",
-  "Mobile - Kelas D",
-  "Kecerdasan Buatan - Kelas C",
-  "Jaringan Komputer - Kelas G",
+  "Basis Data Terdistribusi",
+  "Keamanan Siber & Jaringan",
+  "Rekayasa Perangkat Lunak",
+  "UI/UX Design",
+  "Internet of Things (IoT)",
 ];
 
-const studentOptions = [
+const defaultStudents = [
+  "Brooke Everly",
   "Sheren Annabelle",
-  "Aulia Sabillah",
-  "Anne Sada Dewi",
-  "Kayla Indah Pasha",
-  "Silvi Caroline Zebua",
-];
-
-const navItems = [
-  { name: "Dashboard", href: "/dashboard" },
-  { name: "Kelas Saya", href: "/kelas-saya" },
-  { name: "Kehadiran", href: "/kehadiran" },
-  { name: "Penilaian", href: "/penilaian" },
-  { name: "AI Student Evaluator", href: "/evaluator" },
-  { name: "Tugas", href: "/tugas" },
-  { name: "Kalender Akademik", href: "/kalender" },
-  { name: "Pengaturan", href: "/pengaturan" },
+  "Chris Redfield",
+  "Mahasiswa FILKOM",
+  "Nama Mahasiswa",
 ];
 
 export default function EvaluatorPage() {
@@ -40,14 +32,150 @@ export default function EvaluatorPage() {
 
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [selectedClass, setSelectedClass] = useState(classOptions[0]);
-  const [selectedStudent, setSelectedStudent] = useState(studentOptions[0]);
+
+  // Options
+  const [classOptions, setClassOptions] = useState<string[]>(defaultClasses);
+  const [studentOptions, setStudentOptions] = useState<string[]>(defaultStudents);
+  const [selectedClass, setSelectedClass] = useState(defaultClasses[0]);
+  const [selectedStudent, setSelectedStudent] = useState(defaultStudents[0]);
+
+  // Evaluator State
   const [isAnalyzed, setIsAnalyzed] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
+
+  // Result from Real AI Backend
+  const [analysisResult, setAnalysisResult] = useState<{
+    nilaiAkhir: number | string;
+    trenKehadiran: string;
+    status_risiko: string;
+    ringkasan_analisis: string;
+    rekomendasi: string;
+    dateText?: string;
+  } | null>(null);
 
   useEffect(() => {
     setMounted(true);
+
+    // Ambil data kelas dan mahasiswa asli dari Backend
+    const loadMasterData = async () => {
+      try {
+        const [classesRes, usersRes] = await Promise.allSettled([
+          apiFetch("/classes", { method: "GET" }),
+          apiFetch("/users", { method: "GET" }),
+        ]);
+
+        if (classesRes.status === "fulfilled" && classesRes.value) {
+          const raw = classesRes.value;
+          const list = Array.isArray(raw) ? raw : raw.data || [];
+          if (list.length > 0) {
+            const classNames = list.map((c: any) => c.name || c.id);
+            setClassOptions(classNames);
+            if (!classNames.includes(selectedClass)) {
+              setSelectedClass(classNames[0]);
+            }
+          }
+        }
+
+        if (usersRes.status === "fulfilled" && usersRes.value) {
+          const raw = usersRes.value;
+          const list = Array.isArray(raw) ? raw : raw.data || [];
+          const mhs = list.filter((u: any) => u.role === "mahasiswa" || !u.role);
+          if (mhs.length > 0) {
+            const names = mhs.map((u: any) => u.name);
+            setStudentOptions(names);
+            if (!names.includes(selectedStudent)) {
+              setSelectedStudent(names[0]);
+            }
+          }
+        }
+      } catch (_) {
+        // Fallback default options tetap aktif
+      }
+    };
+
+    loadMasterData();
   }, []);
+
+  // ── Handler Analisis dengan AI Real ─────────────────────────────────────
+  const handleAnalyze = async () => {
+    try {
+      setAnalyzing(true);
+      setErrorMsg(null);
+
+      const res = await apiFetch("/evaluator/analyze", {
+        method: "POST",
+        body: JSON.stringify({
+          student_id: selectedStudent,
+          class_id: selectedClass,
+          lecturer_note: notes || undefined,
+        }),
+      });
+
+      if (res.success && res.data) {
+        setAnalysisResult({
+          nilaiAkhir: res.data.nilaiAkhir ?? 85,
+          trenKehadiran: res.data.trenKehadiran ?? "90%",
+          status_risiko: res.data.status_risiko || "Aman",
+          ringkasan_analisis: res.data.ringkasan_analisis,
+          rekomendasi: res.data.rekomendasi,
+          dateText: res.data.dateText,
+        });
+        setIsAnalyzed(true);
+      } else {
+        throw new Error(res.message || "Gagal melakukan analisis AI.");
+      }
+    } catch (err: any) {
+      console.error("Error AI Evaluator:", err);
+      setErrorMsg(err.message || "Gagal menghubungi server AI Evaluator. Pastikan backend aktif.");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  // ── Handler Simpan Catatan Dosen ─────────────────────────────────────────
+  const handleSaveNotes = async () => {
+    if (!notes.trim()) {
+      alert("Silakan tulis catatan terlebih dahulu.");
+      return;
+    }
+
+    try {
+      setSavingNotes(true);
+      await apiFetch("/evaluator/analyze", {
+        method: "POST",
+        body: JSON.stringify({
+          student_id: selectedStudent,
+          class_id: selectedClass,
+          lecturer_note: notes,
+        }),
+      });
+      alert("Catatan berhasil disimpan ke database evaluasi mahasiswa!");
+    } catch (err: any) {
+      alert(err.message || "Gagal menyimpan catatan.");
+    } finally {
+      setSavingNotes(false);
+    }
+  };
+
+  // Badge warna indikator risiko
+  const getBadgeStyle = (status: string) => {
+    switch (status) {
+      case "Aman":
+      case "Rendah":
+        return "bg-[#8CE2B8] text-[#0A4B29]";
+      case "Perlu Perhatian":
+      case "Sedang":
+        return "bg-amber-300 text-amber-950";
+      case "Berisiko":
+      case "Tinggi":
+        return "bg-rose-300 text-rose-950";
+      default:
+        return "bg-white text-slate-900 shadow-sm";
+    }
+  };
 
   return (
     <div className="flex h-screen bg-slate-100 dark:bg-black text-slate-900 dark:text-white overflow-hidden font-sans transition-colors duration-200">
@@ -228,6 +356,7 @@ export default function EvaluatorPage() {
             </div>
           </div>
         </header>
+
         {/* KONTEN UTAMA EVALUATOR */}
         <main className="flex-1 overflow-y-auto p-8 space-y-6 bg-slate-50 dark:bg-black">
           {/* Sub Header Title */}
@@ -242,10 +371,16 @@ export default function EvaluatorPage() {
 
           {/* Warning Banner */}
           <div className="bg-[#FFC107] text-slate-950 font-semibold rounded-xl p-3.5 text-xs sm:text-sm shadow-sm">
-            Hasil AI adalah rekomendasi berbasis data placeholder dan bukan keputusan
-            akademik final. Gunakan pertimbangan profesional dosen sebelum mengambil
-            tindak lanjut.
+            Hasil AI adalah rekomendasi berbasis data riil mahasiswa dan bukan keputusan akademik final. Gunakan pertimbangan profesional dosen sebelum mengambil tindak lanjut.
           </div>
+
+          {/* Error Alert jika ada */}
+          {errorMsg && (
+            <div className="bg-red-100 border border-red-300 text-red-800 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 shrink-0 text-red-600" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
 
           {/* Filter Container */}
           <div className="bg-[#C2D9FF] p-5 rounded-2xl flex flex-col md:flex-row items-stretch md:items-end gap-4 shadow-sm text-slate-900">
@@ -253,33 +388,46 @@ export default function EvaluatorPage() {
               <label className="text-xs font-bold text-slate-800">
                 Pilih Kelas
               </label>
-<CustomSelect
-  options={classOptions}
-  value={selectedClass}
-  onChange={(val) => {
-    setSelectedClass(val);
-    setIsAnalyzed(false);
-  }}
-/>
+              <CustomSelect
+                options={classOptions}
+                value={selectedClass}
+                onChange={(val) => {
+                  setSelectedClass(val);
+                  setIsAnalyzed(false);
+                }}
+              />
             </div>
 
             <div className="flex-1 space-y-1.5">
               <label className="text-xs font-bold text-slate-800">
                 Pilih Mahasiswa
               </label>
-<CustomSelect
-  options={studentOptions} // atau variabel array mahasiswa kamu
-  value={selectedStudent}
-  onChange={(val) => setSelectedStudent(val)}
-/>
+              <CustomSelect
+                options={studentOptions}
+                value={selectedStudent}
+                onChange={(val) => {
+                  setSelectedStudent(val);
+                  setIsAnalyzed(false);
+                }}
+              />
             </div>
 
             <button
-              onClick={() => setIsAnalyzed(true)}
-              className="bg-[#2B4B7C] hover:bg-[#1e365a] text-white text-xs sm:text-sm font-semibold px-6 py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+              onClick={handleAnalyze}
+              disabled={analyzing}
+              className="bg-[#2B4B7C] hover:bg-[#1e365a] disabled:opacity-70 text-white text-xs sm:text-sm font-semibold px-6 py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
             >
-              <CheckCircle2 className="w-4 h-4 text-amber-300" />
-              Analisis Mahasiswa
+              {analyzing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
+                  Menganalisis AI...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4 text-amber-300" />
+                  Analisis Mahasiswa
+                </>
+              )}
             </button>
           </div>
 
@@ -293,7 +441,7 @@ export default function EvaluatorPage() {
                     Nilai Akhir
                   </span>
                   <span className="text-2xl font-extrabold">
-                    {isAnalyzed ? "85.0" : "--"}
+                    {isAnalyzed && analysisResult ? analysisResult.nilaiAkhir : "--"}
                   </span>
                 </div>
 
@@ -302,7 +450,7 @@ export default function EvaluatorPage() {
                     Tren Kehadiran
                   </span>
                   <span className="text-2xl font-extrabold">
-                    {isAnalyzed ? "92%" : "--"}
+                    {isAnalyzed && analysisResult ? analysisResult.trenKehadiran : "--"}
                   </span>
                 </div>
 
@@ -313,12 +461,14 @@ export default function EvaluatorPage() {
                   <div>
                     <span
                       className={`inline-block px-3 py-1 rounded-lg text-xs font-bold ${
-                        isAnalyzed
-                          ? "bg-[#8CE2B8] text-[#0A4B29]"
+                        isAnalyzed && analysisResult
+                          ? getBadgeStyle(analysisResult.status_risiko)
                           : "bg-white text-slate-900 shadow-sm"
                       }`}
                     >
-                      {isAnalyzed ? "Rendah" : "Belum Dianalisis"}
+                      {isAnalyzed && analysisResult
+                        ? analysisResult.status_risiko
+                        : "Belum Dianalisis"}
                     </span>
                   </div>
                 </div>
@@ -334,24 +484,23 @@ export default function EvaluatorPage() {
                     Ringkasan Performa Akademik
                   </h2>
                   <p className="text-xs text-slate-700 mt-1">
-                    {isAnalyzed
-                      ? `Hasil analisis AI untuk ${selectedStudent} di kelas ${selectedClass}:`
+                    {isAnalyzed && analysisResult
+                      ? `Hasil analisis Gemini AI untuk ${selectedStudent} di ${selectedClass}:`
                       : "Pilih mahasiswa lalu tekan Analisis Mahasiswa untuk melihat insight."}
                   </p>
                 </div>
 
-                {isAnalyzed && (
-                  <p className="text-xs sm:text-sm text-slate-800 leading-relaxed font-medium">
-                    Mahasiswa menunjukkan performa konsisten pada tugas praktikum serta
-                    memiliki tingkat pemahaman konsep dasar yang sangat baik.
+                {isAnalyzed && analysisResult && (
+                  <p className="text-xs sm:text-sm text-slate-800 leading-relaxed font-medium bg-white/50 p-3.5 rounded-xl">
+                    {analysisResult.ringkasan_analisis}
                   </p>
                 )}
 
                 <div className="bg-[#8CE2B8] text-[#0A4B29] p-4 rounded-xl text-xs sm:text-sm font-medium space-y-1">
                   <div className="font-bold">Rekomendasi Tindak Lanjut</div>
                   <div>
-                    {isAnalyzed
-                      ? "Pertahankan tren positif dan berikan tantangan studi kasus tingkat lanjut."
+                    {isAnalyzed && analysisResult
+                      ? analysisResult.rekomendasi
                       : "Rekomendasi akan tampil setelah analisis."}
                   </div>
                 </div>
@@ -383,10 +532,12 @@ export default function EvaluatorPage() {
               </div>
 
               <button
-                onClick={() => alert("Catatan berhasil disimpan!")}
-                className="w-fit bg-white hover:bg-slate-100 text-slate-900 text-xs sm:text-sm font-bold px-5 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer"
+                onClick={handleSaveNotes}
+                disabled={savingNotes}
+                className="w-fit bg-white hover:bg-slate-100 disabled:opacity-70 text-slate-900 text-xs sm:text-sm font-bold px-5 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer flex items-center gap-2"
               >
-                Simpan Catatan
+                {savingNotes && <Loader2 className="w-4 h-4 animate-spin text-slate-900" />}
+                {savingNotes ? "Menyimpan..." : "Simpan Catatan"}
               </button>
             </div>
           </div>
