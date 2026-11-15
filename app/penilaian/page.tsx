@@ -82,7 +82,7 @@ export default function PenilaianPage() {
         // Group data berdasarkan nama mahasiswa jika per tugas tersimpan terpisah
         const mappedStudents: Student[] = data.map((item: any, idx: number) => ({
           id: String(item.id || idx + 1),
-          name: item.student_name || item.name || "Mahasiswa",
+          name: item.student_name || item.studentName || item.name || "Mahasiswa",
           nim: item.nim || `22010100${idx + 1}`,
           tugas: Number(item.tugas || item.score || 85),
           kuis: Number(item.kuis || 80),
@@ -131,11 +131,17 @@ export default function PenilaianPage() {
   const handleSavePenilaian = async () => {
     try {
       setSaving(true);
+      const activeCls = classList.find((c: any) =>
+        (c.name + (c.classRoom ? ` - ${c.classRoom}` : "")) === selectedClass ||
+        c.name === selectedClass
+      );
+      const targetClassId = activeCls?.id || (classList[0]?.id || "kelas-pfa");
+
       const savePromises = students.map((s) =>
         apiFetch("/penilaian", {
           method: "POST",
           body: JSON.stringify({
-            class_id: 1,
+            class_id: targetClassId,
             student_name: s.name,
             task_name: "Penilaian Akhir",
             score: parseFloat(calculateFinalScore(s)),

@@ -73,11 +73,11 @@ export default function KehadiranPage() {
       const mappedStudents: Student[] = data.map((item: any, idx: number) => ({
         id: String(item.id || item._id || idx + 1),
         name:
-          item.nama_mahasiswa ||
           item.student_name ||
-          item.nama ||
-          item.name ||
+          item.studentName ||
+          item.nama_mahasiswa ||
           item.user?.name ||
+          item.name ||
           `Mahasiswa ${idx + 1}`,
         nim: item.nim || item.nim_mahasiswa || `22010100${idx + 1}`,
         status: (item.status === "Alpa" ? "Alpha" : item.status) || "Hadir",
@@ -130,15 +130,24 @@ export default function KehadiranPage() {
   const handleSaveAttendance = async () => {
     try {
       setSaving(true);
+      const activeCls = classList.find((c: any) =>
+        (c.name + (c.classRoom ? ` - ${c.classRoom}` : "")) === selectedCourse ||
+        c.name === selectedCourse
+      );
+      const targetClassId = activeCls?.id || (classList[0]?.id || "kelas-ai");
+      const meetingNum = parseInt(selectedMeeting.replace(/\D/g, ""), 10) || 1;
+
       const savePromises = students.map((student) =>
         apiFetch("/kehadiran", {
           method: "POST",
           body: JSON.stringify({
-            class_id: 1,
+            class_id: targetClassId,
             student_name: student.name,
             nim: student.nim,
             status: student.status === "Alpha" ? "Alpa" : student.status,
             date: new Date().toISOString().split("T")[0],
+            nomor: meetingNum,
+            matkul_name: activeCls?.name || selectedCourse,
           }),
         })
       );
