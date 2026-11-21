@@ -430,7 +430,13 @@ export default function TugasPage() {
                       </button>
                     </div>
                     <h3 className="text-base font-bold text-slate-950 mt-1">
-                      {task.title}
+                      <Link
+                        href={`/tugas/${task.id}`}
+                        className="hover:underline hover:text-[#182B4E] transition-colors cursor-pointer"
+                        title="Lihat Pengumpulan & Penilaian Tugas"
+                      >
+                        {task.title}
+                      </Link>
                     </h3>
                   </div>
 
