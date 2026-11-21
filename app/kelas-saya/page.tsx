@@ -17,6 +17,9 @@ export default function KelasSayaPage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // State User Profil dari LocalStorage
+  const [user, setUser] = useState<any>(null);
+
   // 1. READ: Tarik data kelas dari API Backend
   const fetchClasses = async () => {
     try {
@@ -34,6 +37,12 @@ export default function KelasSayaPage() {
 
   useEffect(() => {
     fetchClasses();
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      try {
+        setUser(JSON.parse(userData));
+      } catch (e) {}
+    }
   }, []);
 
   // 3. DELETE: Hapus kelas dari Backend Database
@@ -218,14 +227,14 @@ export default function KelasSayaPage() {
           <div className="flex items-center gap-3">
             <div className="text-right">
               <div className="text-sm font-bold text-black dark:text-white leading-tight">
-                Mister Potato
+                {user?.name || user?.nama || "Dosen Pengampu"}
               </div>
               <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                Fakultas Vokasi
+                {user?.fakultas || "Fakultas Vokasi"}
               </div>
             </div>
             <div className="w-10 h-10 rounded-xl bg-[#182B4E] text-white flex items-center justify-center font-bold text-base shadow-sm">
-              M
+              {(user?.name || user?.nama || "D").charAt(0).toUpperCase()}
             </div>
           </div>
         </header>

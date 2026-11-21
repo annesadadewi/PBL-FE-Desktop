@@ -28,15 +28,18 @@ export default function PengaturanPage() {
     "profil" | "preferensi-ai" | "keamanan"
   >("profil");
 
+  // State User Profil dari LocalStorage
+  const [user, setUser] = useState<any>(null);
+
   // Form States
-  const [profileData] = useState({
-    fullName: "Dr. Hieronimus Lekiuk, S.Tr., M.H",
-    nip: "1987XXXXXXXXXX",
-    phone: "08XXXXXXXXXX",
+  const [profileData, setProfileData] = useState({
+    fullName: "Dr. Ahmad Sahroni, M.Kom.",
+    nip: "198503152010121002",
+    phone: "081234567890",
     title: "Doktor",
-    email: "hieronimus@ub.ac.id",
-    department: "Teknik Komputer",
-    position: "Kepala Prodi",
+    email: "dosen@eduinsight.ac.id",
+    department: "Teknik Informatika",
+    position: "Dosen Pengampu",
   });
 
   const [aiSettings, setAiSettings] = useState({
@@ -57,6 +60,20 @@ export default function PengaturanPage() {
 
   useEffect(() => {
     setMounted(true);
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      try {
+        const parsed = JSON.parse(userData);
+        setUser(parsed);
+        setProfileData((prev) => ({
+          ...prev,
+          fullName: parsed.name || parsed.nama || prev.fullName,
+          email: parsed.email || prev.email,
+          nip: parsed.nip || prev.nip,
+          department: parsed.prodi || parsed.fakultas || prev.department,
+        }));
+      } catch (e) {}
+    }
   }, []);
 
   return (
@@ -227,14 +244,14 @@ export default function PengaturanPage() {
           <div className="flex items-center gap-3">
             <div className="text-right">
               <div className="text-sm font-bold text-black dark:text-white leading-tight">
-                Mister Potato
+                {user?.name || user?.nama || profileData.fullName}
               </div>
               <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                Fakultas Vokasi
+                {user?.fakultas || "Fakultas Vokasi"}
               </div>
             </div>
             <div className="w-10 h-10 rounded-xl bg-[#182B4E] text-white flex items-center justify-center font-bold text-base shadow-sm">
-              M
+              {(user?.name || user?.nama || profileData.fullName || "D").charAt(0).toUpperCase()}
             </div>
           </div>
         </header>

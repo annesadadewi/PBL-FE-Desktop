@@ -45,8 +45,17 @@ export default function TugasPage() {
   const [newDescription, setNewDescription] = useState("");
   const [formError, setFormError] = useState("");
 
+  // State User Profil dari LocalStorage
+  const [user, setUser] = useState<any>(null);
+
   useEffect(() => {
     setMounted(true);
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      try {
+        setUser(JSON.parse(userData));
+      } catch (e) {}
+    }
   }, []);
 
   // 1. Fetch List Kelas dari Backend
@@ -117,8 +126,21 @@ export default function TugasPage() {
       setFormError("Judul tugas wajib diisi.");
       return;
     }
-    if (trimmedTitle.length < 3) {
-      setFormError("Judul tugas minimal 3 karakter.");
+    if (trimmedTitle.length < 4) {
+      setFormError("Judul tugas minimal 4 karakter.");
+      return;
+    }
+    if (/^(.)\1+$/i.test(trimmedTitle)) {
+      setFormError("Judul tugas tidak boleh berupa karakter berulang sembarang (contoh: aaaaa).");
+      return;
+    }
+    const uniqueLetters = new Set(trimmedTitle.toLowerCase().replace(/\s+/g, ''));
+    if (uniqueLetters.size < 3) {
+      setFormError("Judul tugas harus bermakna dan jelas (tidak boleh karakter berulang).");
+      return;
+    }
+    if (!/[a-zA-Z]/.test(trimmedTitle)) {
+      setFormError("Judul tugas harus mengandung huruf alfabet.");
       return;
     }
     if (!newDueDate) {
@@ -338,14 +360,14 @@ export default function TugasPage() {
           <div className="flex items-center gap-3">
             <div className="text-right">
               <div className="text-sm font-bold text-black dark:text-white leading-tight">
-                Mister Potato
+                {user?.name || user?.nama || "Dosen Pengampu"}
               </div>
               <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                Fakultas Vokasi
+                {user?.fakultas || "Fakultas Vokasi"}
               </div>
             </div>
             <div className="w-10 h-10 rounded-xl bg-[#182B4E] text-white flex items-center justify-center font-bold text-base shadow-sm">
-              M
+              {(user?.name || user?.nama || "D").charAt(0).toUpperCase()}
             </div>
           </div>
         </header>

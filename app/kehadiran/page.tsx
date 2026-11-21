@@ -32,6 +32,18 @@ export default function KehadiranPage() {
   const [selectedMeeting, setSelectedMeeting] = useState("Pertemuan 1");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // State User Profil dari LocalStorage
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      try {
+        setUser(JSON.parse(userData));
+      } catch (e) {}
+    }
+  }, []);
+
   // Loading & Saving State
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -61,7 +73,41 @@ export default function KehadiranPage() {
         const res = await apiFetch("/classes", { method: "GET" });
         const data = Array.isArray(res) ? res : res.data || [];
         setClassList(data);
-        if (data.length > 0) {
+
+        // Ambil query parameter dari URL jika diarahkan dari dashboard
+        let targetClass = null;
+        if (typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search);
+          const qKelasId = params.get("kelasId") || params.get("class_id") || "";
+          const qCourse = params.get("course") || "";
+          const qNomor = params.get("nomor") || "";
+
+          if (qNomor) {
+            setSelectedMeeting(`Pertemuan ${qNomor}`);
+          }
+
+          if (qKelasId || qCourse) {
+            targetClass = data.find((c: any) => {
+              const cId = String(c.id || "").toLowerCase();
+              const cKode = String(c.kodeGabung || c.kode || "").toLowerCase();
+              const cName = String(c.name || c.nama || "").toLowerCase();
+              const targetId = qKelasId.toLowerCase();
+              const targetCourse = qCourse.toLowerCase();
+
+              return (
+                (targetId && (cId === targetId || cKode === targetId || cName.includes(targetId))) ||
+                (targetCourse && (cName.includes(targetCourse) || targetCourse.includes(cName)))
+              );
+            });
+          }
+        }
+
+        if (targetClass) {
+          const targetName =
+            (targetClass.name || targetClass.nama || "Kelas") +
+            (targetClass.classRoom || targetClass.kelas ? ` - ${targetClass.classRoom || targetClass.kelas}` : "");
+          setSelectedCourse(targetName);
+        } else if (data.length > 0) {
           const defaultName =
             (data[0].name || data[0].nama || "Kelas") +
             (data[0].classRoom ? ` - ${data[0].classRoom}` : "");
@@ -395,14 +441,14 @@ export default function KehadiranPage() {
           <div className="flex items-center gap-3">
             <div className="text-right">
               <div className="text-sm font-bold text-black dark:text-white leading-tight">
-                Mister Potato
+                {user?.name || user?.nama || "Dosen Pengampu"}
               </div>
               <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                Fakultas Vokasi
+                {user?.fakultas || "Fakultas Vokasi"}
               </div>
             </div>
             <div className="w-10 h-10 rounded-xl bg-[#182B4E] text-white flex items-center justify-center font-bold text-base shadow-sm">
-              M
+              {(user?.name || user?.nama || "D").charAt(0).toUpperCase()}
             </div>
           </div>
         </header>

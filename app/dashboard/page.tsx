@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
@@ -265,14 +265,14 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3">
             <div className="text-right">
               <div className="text-sm font-bold text-black dark:text-white leading-tight">
-                {user?.nama || "Mister Potato"}
+                {user?.name || user?.nama || "Dosen"}
               </div>
               <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                 {user?.role ? `Role: ${user.role}` : "Fakultas Vokasi"}
               </div>
             </div>
             <div className="w-10 h-10 rounded-xl bg-[#182B4E] text-white flex items-center justify-center font-bold text-base shadow-sm">
-              {(user?.nama || "M").charAt(0).toUpperCase()}
+              {(user?.name || user?.nama || "D").charAt(0).toUpperCase()}
             </div>
           </div>
         </header>
@@ -284,7 +284,7 @@ export default function DashboardPage() {
           <div className="bg-[#CBE0FE] p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold text-slate-900">
-                Selamat Datang, {user?.nama || "Mister Potato"}!
+                Selamat Datang, {user?.name || user?.nama || "Dosen"}!
               </h2>
               <p className="text-xs md:text-sm text-slate-700 mt-1 font-medium">
                 Pantau Aktivitas perkuliahan dan tindak lanjut mahasiswa Anda hari ini
@@ -394,7 +394,7 @@ export default function DashboardPage() {
                     </div>
 
                     <Link
-                      href="/kehadiran"
+                      href={`/kehadiran?kelasId=${encodeURIComponent(item.id)}&class_id=${encodeURIComponent(item.id)}&course=${encodeURIComponent(item.name)}&nomor=1`}
                       className="w-fit px-5 py-2.5 rounded-xl bg-[#294371] hover:bg-blue-900 text-white font-semibold text-xs shadow-sm transition-all text-center cursor-pointer"
                     >
                       Buka Kelas
