@@ -4,6 +4,8 @@ export interface StudentAttendance {
   nim: string;
   status: "Hadir" | "Izin" | "Sakit" | "Alpha";
   course?: string;
+  kelasId?: string;
+  nomor?: number;
   finalScore?: number;
   gradeHistory?: string;
   notes?: string;

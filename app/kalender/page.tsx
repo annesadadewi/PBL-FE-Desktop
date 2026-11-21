@@ -48,7 +48,7 @@ export default function KalenderPage() {
   return (
     <div className="flex h-screen bg-slate-100 dark:bg-black text-slate-900 dark:text-white overflow-hidden font-sans transition-colors duration-200">
       {/* ---------------- SIDEBAR LEFT ---------------- */}
-      <aside className="w-full md:w-64 bg-[#182B4E] text-white flex flex-col justify-between shrink-0 min-h-screen relative z-20">
+      <aside className="w-full md:w-64 bg-[#182B4E] text-white flex flex-col justify-between shrink-0 md:h-screen md:sticky md:top-0 md:overflow-y-auto relative z-20">
         <div>
           {/* Logo Brand */}
           <div className="p-6 flex items-center gap-3">

@@ -17,8 +17,33 @@ export default function LoginForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setErrorMessage("");
+
+    // Validasi Input Form
+    const trimmedIdentifier = identifier.trim();
+    if (!trimmedIdentifier) {
+      setErrorMessage("Email atau NIP wajib diisi.");
+      return;
+    }
+
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedIdentifier);
+    const isNIP = /^\d{6,18}$/.test(trimmedIdentifier);
+    if (!isEmail && !isNIP) {
+      setErrorMessage("Format harus berupa Email resmi atau NIP angka (6-18 digit).");
+      return;
+    }
+
+    if (!password) {
+      setErrorMessage("Password wajib diisi.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMessage("Password minimal 6 karakter.");
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
       const res = await apiFetch("/auth/login", {

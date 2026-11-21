@@ -38,10 +38,26 @@ export default function TugasManagement({ classId }: TugasManagementProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
+    const trimmedJudul = judul.trim();
+    if (!trimmedJudul) {
+      setError("Judul tugas wajib diisi.");
+      return;
+    }
+    if (trimmedJudul.length < 3) {
+      setError("Judul tugas minimal 3 karakter.");
+      return;
+    }
+    if (!deadline) {
+      setError("Tenggat waktu wajib diisi.");
+      return;
+    }
+
     try {
       await createTugas({
         class_id: classId,
-        judul,
+        judul: trimmedJudul,
         deskripsi,
         deadline,
       });
@@ -50,7 +66,7 @@ export default function TugasManagement({ classId }: TugasManagementProps) {
       setDeadline("");
       fetchTugas(); // Refresh daftar tugas setelah berhasil submit
     } catch {
-      alert("Gagal membuat tugas baru.");
+      setError("Gagal membuat tugas baru.");
     }
   };
 

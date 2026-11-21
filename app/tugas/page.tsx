@@ -43,6 +43,7 @@ export default function TugasPage() {
   const [newClassId, setNewClassId] = useState<number>(1);
   const [newDueDate, setNewDueDate] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [formError, setFormError] = useState("");
 
   useEffect(() => {
     setMounted(true);
@@ -109,8 +110,19 @@ export default function TugasPage() {
   // 3. Handle Tambah Tugas Baru (CREATE)
   const handleSaveTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim() || !newDueDate) {
-      alert("Harap isi Judul Tugas dan Tenggat!");
+    setFormError("");
+
+    const trimmedTitle = newTitle.trim();
+    if (!trimmedTitle) {
+      setFormError("Judul tugas wajib diisi.");
+      return;
+    }
+    if (trimmedTitle.length < 3) {
+      setFormError("Judul tugas minimal 3 karakter.");
+      return;
+    }
+    if (!newDueDate) {
+      setFormError("Tenggat waktu tugas wajib dipilih.");
       return;
     }
 
@@ -120,7 +132,7 @@ export default function TugasPage() {
         method: "POST",
         body: JSON.stringify({
           class_id: newClassId,
-          title: newTitle,
+          title: trimmedTitle,
           description: newDescription || "Tugas reguler praktikum",
           deadline: newDueDate,
         }),
@@ -131,9 +143,10 @@ export default function TugasPage() {
       setNewTitle("");
       setNewDueDate("");
       setNewDescription("");
+      setFormError("");
       fetchTasks();
     } catch (err: any) {
-      alert(err.message || "Gagal membuat tugas baru");
+      setFormError(err.message || "Gagal membuat tugas baru");
     } finally {
       setSubmitting(false);
     }
@@ -160,7 +173,7 @@ export default function TugasPage() {
   return (
     <div className="flex h-screen bg-slate-100 dark:bg-black text-slate-900 dark:text-white overflow-hidden font-sans transition-colors duration-200">
       {/* ---------------- SIDEBAR LEFT ---------------- */}
-      <aside className="w-full md:w-64 bg-[#182B4E] text-white flex flex-col justify-between shrink-0 min-h-screen relative z-20">
+      <aside className="w-full md:w-64 bg-[#182B4E] text-white flex flex-col justify-between shrink-0 md:h-screen md:sticky md:top-0 md:overflow-y-auto relative z-20">
         <div>
           {/* Logo Brand */}
           <div className="p-6 flex items-center gap-3">
@@ -437,6 +450,12 @@ export default function TugasPage() {
               <p className="text-xs font-semibold text-slate-600">Asesmen Baru</p>
               <h2 className="text-lg font-bold text-slate-900 mt-0.5">Tambah Tugas</h2>
             </div>
+
+            {formError && (
+              <div className="p-2.5 bg-red-100 border border-red-300 text-red-700 text-xs font-semibold rounded-xl">
+                {formError}
+              </div>
+            )}
 
             {/* Form Modal */}
             <form onSubmit={handleSaveTask} className="space-y-4">

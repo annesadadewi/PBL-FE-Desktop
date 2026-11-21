@@ -14,6 +14,8 @@ interface Student {
   nim: string;
   status: "Hadir" | "Izin" | "Sakit" | "Alpha";
   course?: string;
+  kelasId?: string;
+  nomor?: number;
   finalScore?: number;
   gradeHistory?: string;
   notes?: string;
@@ -41,6 +43,17 @@ export default function KehadiranPage() {
   // Data Mahasiswa Presensi
   const [students, setStudents] = useState<Student[]>([]);
 
+  // Helper mencari ID kelas aktif dan nomor pertemuan aktif
+  const activeClass = classList.find((c: any) => {
+    const label =
+      (c.name || c.nama || "Kelas") +
+      (c.classRoom || c.kelas ? ` - ${c.classRoom || c.kelas}` : "");
+    return label === selectedCourse || c.name === selectedCourse || c.id === selectedCourse;
+  }) || (classList.length > 0 ? classList[0] : null);
+
+  const activeKelasId = activeClass?.id || "";
+  const activeNomor = parseInt(selectedMeeting.replace(/\D/g, ""), 10) || 1;
+
   // 1. Fetch List Kelas untuk Dropdown
   useEffect(() => {
     const fetchClasses = async () => {
@@ -61,12 +74,26 @@ export default function KehadiranPage() {
     fetchClasses();
   }, []);
 
-  // 2. Fetch Data Kehadiran dari Backend Express (Diselaraskan dengan Nama Properti Database)
-  const fetchKehadiran = async () => {
+  // 2. Fetch Data Kehadiran dari Backend Express dengan parameter kelasId dan nomor
+  const fetchKehadiran = async (targetKelasId?: string, targetNomor?: number) => {
     try {
       setLoading(true);
       setErrorMsg("");
-      const res = await apiFetch("/kehadiran", { method: "GET" });
+
+      const kId = targetKelasId || activeKelasId;
+      const meetingNum = targetNomor ?? activeNomor;
+
+      const queryParams = new URLSearchParams();
+      if (kId) {
+        queryParams.append("kelasId", kId);
+        queryParams.append("class_id", kId);
+      }
+      if (meetingNum) {
+        queryParams.append("nomor", String(meetingNum));
+      }
+
+      const queryString = queryParams.toString() ? `?${queryParams.toString()}` : "";
+      const res = await apiFetch(`/kehadiran${queryString}`, { method: "GET" });
       const data = Array.isArray(res) ? res : res.data || [];
 
       // Map data backend ke format interface Student dengan pengaman variasi nama
@@ -81,20 +108,22 @@ export default function KehadiranPage() {
           `Mahasiswa ${idx + 1}`,
         nim: item.nim || item.nim_mahasiswa || `22010100${idx + 1}`,
         status: (item.status === "Alpa" ? "Alpha" : item.status) || "Hadir",
-        course: selectedCourse,
+        course: item.course || selectedCourse,
+        kelasId: item.kelasId || item.class_id || kId,
+        nomor: item.nomor || meetingNum,
         finalScore: item.finalScore || 85.0,
         gradeHistory: item.gradeHistory || "Tugas 88 · Kuis 80 · UTS 84 · UAS 88",
         notes: item.notes || "Aktif dan tepat waktu mengumpulkan tugas",
       }));
 
-      // Jika database backend belum punya data kehadiran sama sekali, berikan dummy fallback
+      // Jika database backend belum punya data kehadiran sama sekali untuk kombinasi ini, berikan fallback
       if (mappedStudents.length === 0) {
         setStudents([
-          { id: "1", name: "Anne Sada Dewi", nim: "220101001", status: "Hadir", course: selectedCourse, finalScore: 87.5, gradeHistory: "Tugas 90 · Kuis 82 · UTS 85 · UAS 90", notes: "Menunjukkan konsistensi baik dalam diskusi" },
-          { id: "2", name: "Sheren Annabelle", nim: "220101002", status: "Hadir", course: selectedCourse, finalScore: 85.0, gradeHistory: "Tugas 88 · Kuis 80 · UTS 84 · UAS 88", notes: "Aktif dan tepat waktu mengumpulkan tugas" },
-          { id: "3", name: "Kayla Indah Pasha", nim: "220101003", status: "Hadir", course: selectedCourse, finalScore: 90.0, gradeHistory: "Tugas 92 · Kuis 88 · UTS 90 · UAS 90", notes: "Memiliki pemahaman konsep yang sangat mendalam" },
-          { id: "4", name: "Aulia Sabillah", nim: "220101004", status: "Hadir", course: selectedCourse, finalScore: 82.5, gradeHistory: "Tugas 85 · Kuis 78 · UTS 80 · UAS 87", notes: "Perlu ditingkatkan pada partisipasi praktikum" },
-          { id: "5", name: "Silvi Caroline Zebua", nim: "220101005", status: "Hadir", course: selectedCourse, finalScore: 88.0, gradeHistory: "Tugas 90 · Kuis 85 · UTS 86 · UAS 91", notes: "Sangat responsif saat tanya jawab di kelas" },
+          { id: "1", name: "Anne Sada Dewi", nim: "220101001", status: "Hadir", course: selectedCourse, kelasId: kId, nomor: meetingNum, finalScore: 87.5, gradeHistory: "Tugas 90 · Kuis 82 · UTS 85 · UAS 90", notes: "Menunjukkan konsistensi baik dalam diskusi" },
+          { id: "2", name: "Sheren Annabelle", nim: "220101002", status: "Hadir", course: selectedCourse, kelasId: kId, nomor: meetingNum, finalScore: 85.0, gradeHistory: "Tugas 88 · Kuis 80 · UTS 84 · UAS 88", notes: "Aktif dan tepat waktu mengumpulkan tugas" },
+          { id: "3", name: "Kayla Indah Pasha", nim: "220101003", status: "Hadir", course: selectedCourse, kelasId: kId, nomor: meetingNum, finalScore: 90.0, gradeHistory: "Tugas 92 · Kuis 88 · UTS 90 · UAS 90", notes: "Memiliki pemahaman konsep yang sangat mendalam" },
+          { id: "4", name: "Aulia Sabillah", nim: "220101004", status: "Hadir", course: selectedCourse, kelasId: kId, nomor: meetingNum, finalScore: 82.5, gradeHistory: "Tugas 85 · Kuis 78 · UTS 80 · UAS 87", notes: "Perlu ditingkatkan pada partisipasi praktikum" },
+          { id: "5", name: "Silvi Caroline Zebua", nim: "220101005", status: "Hadir", course: selectedCourse, kelasId: kId, nomor: meetingNum, finalScore: 88.0, gradeHistory: "Tugas 90 · Kuis 85 · UTS 86 · UAS 91", notes: "Sangat responsif saat tanya jawab di kelas" },
         ]);
       } else {
         setStudents(mappedStudents);
@@ -108,8 +137,10 @@ export default function KehadiranPage() {
   };
 
   useEffect(() => {
-    fetchKehadiran();
-  }, [selectedCourse, selectedMeeting]);
+    if (activeKelasId) {
+      fetchKehadiran(activeKelasId, activeNomor);
+    }
+  }, [selectedCourse, selectedMeeting, activeKelasId, activeNomor]);
 
   // Handler ubah status per mahasiswa di state lokal
   const handleStatusChange = (
@@ -130,29 +161,27 @@ export default function KehadiranPage() {
   const handleSaveAttendance = async () => {
     try {
       setSaving(true);
-      const activeCls = classList.find((c: any) =>
-        (c.name + (c.classRoom ? ` - ${c.classRoom}` : "")) === selectedCourse ||
-        c.name === selectedCourse
-      );
-      const targetClassId = activeCls?.id || (classList[0]?.id || "kelas-ai");
-      const meetingNum = parseInt(selectedMeeting.replace(/\D/g, ""), 10) || 1;
+      const targetClassId = activeKelasId || "kelas-ai";
+      const meetingNum = activeNomor;
 
       const savePromises = students.map((student) =>
         apiFetch("/kehadiran", {
           method: "POST",
           body: JSON.stringify({
             class_id: targetClassId,
+            kelasId: targetClassId,
             student_name: student.name,
             nim: student.nim,
             status: student.status === "Alpha" ? "Alpa" : student.status,
             date: new Date().toISOString().split("T")[0],
             nomor: meetingNum,
-            matkul_name: activeCls?.name || selectedCourse,
+            matkul_name: activeClass?.name || selectedCourse,
           }),
         })
       );
       await Promise.all(savePromises);
       alert("Data kehadiran berhasil disimpan ke database!");
+      fetchKehadiran(targetClassId, meetingNum);
     } catch (err: any) {
       alert(err.message || "Gagal menyimpan data kehadiran");
     } finally {
@@ -167,9 +196,18 @@ export default function KehadiranPage() {
       s.nim.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Kalkulasi Ringkasan Status
+  // Kalkulasi Ringkasan Status Hadir, Izin, Sakit, Alpha dengan filter kelasId & nomor pertemuan
   const countStatus = (statusType: "Hadir" | "Izin" | "Sakit" | "Alpha") => {
-    return filteredStudents.filter((s) => s.status === statusType).length;
+    return filteredStudents.filter((s) => {
+      // Pastikan data mahasiswa sesuai dengan kelasId dan nomor pertemuan aktif jika ada
+      if (activeKelasId && s.kelasId && s.kelasId !== activeKelasId) return false;
+      if (activeNomor && s.nomor && s.nomor !== activeNomor) return false;
+
+      if (statusType === "Alpha") {
+        return s.status === "Alpha" || (s.status as any) === "Alpa";
+      }
+      return s.status === statusType;
+    }).length;
   };
 
   // Pilihan nama kelas untuk CustomSelect
@@ -191,7 +229,7 @@ export default function KehadiranPage() {
     <div className="min-h-screen bg-white dark:bg-black text-slate-900 dark:text-white flex flex-col md:flex-row font-sans transition-colors duration-200">
       
       {/* ---------------- SIDEBAR LEFT ---------------- */}
-      <aside className="w-full md:w-64 bg-[#182B4E] text-white flex flex-col justify-between shrink-0 min-h-screen relative z-20">
+      <aside className="w-full md:w-64 bg-[#182B4E] text-white flex flex-col justify-between shrink-0 md:h-screen md:sticky md:top-0 md:overflow-y-auto relative z-20">
         <div>
           {/* Logo Brand */}
           <div className="p-6 flex items-center gap-3">

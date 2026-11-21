@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Sun, Moon, CheckCircle2, Plus, Trash2, Loader2 } from "lucide-react";
+import { Sun, Moon, CheckCircle2, Trash2, Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 export default function KelasSayaPage() {
@@ -16,14 +16,6 @@ export default function KelasSayaPage() {
   const [myClasses, setMyClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
-
-  // State Form Tambah Kelas Baru (Create)
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [name, setName] = useState("");
-  const [classCode, setClassCode] = useState("");
-  const [students, setStudents] = useState("");
-  const [schedule, setSchedule] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
   // 1. READ: Tarik data kelas dari API Backend
   const fetchClasses = async () => {
@@ -44,37 +36,6 @@ export default function KelasSayaPage() {
     fetchClasses();
   }, []);
 
-  // 2. CREATE: Tambah kelas baru ke Backend Database (Diselaraskan dengan Backend)
-  const handleCreateClass = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-
-    try {
-      setSubmitting(true);
-      await apiFetch("/classes", {
-        method: "POST",
-        body: JSON.stringify({
-          name: name,                                             // Nama Mata Kuliah
-          code: classCode || "PFA3",                              // Properti 'code'
-          classRoom: students ? `Kelas ${students}` : "Kelas A",  // Properti 'classRoom'
-          schedule: schedule || "Jadwal belum diatur",            // Properti 'schedule'
-        }),
-      });
-
-      // Reset Form & Refresh Data
-      setName("");
-      setClassCode("");
-      setStudents("");
-      setSchedule("");
-      setShowAddForm(false);
-      fetchClasses();
-    } catch (err: any) {
-      alert(err.message || "Gagal membuat kelas baru");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   // 3. DELETE: Hapus kelas dari Backend Database
   const handleDeleteClass = async (id: string, className: string) => {
     if (!confirm(`Apakah Anda yakin ingin menghapus kelas "${className}"?`)) return;
@@ -91,7 +52,7 @@ export default function KelasSayaPage() {
     <div className="min-h-screen bg-white dark:bg-black text-slate-900 dark:text-white flex flex-col md:flex-row font-sans transition-colors duration-200">
       
       {/* ---------------- SIDEBAR LEFT ---------------- */}
-      <aside className="w-full md:w-64 bg-[#182B4E] text-white flex flex-col justify-between shrink-0 min-h-screen relative z-20">
+      <aside className="w-full md:w-64 bg-[#182B4E] text-white flex flex-col justify-between shrink-0 md:h-screen md:sticky md:top-0 md:overflow-y-auto relative z-20">
         <div>
           {/* Logo Brand */}
           <div className="p-6 flex items-center gap-3">
@@ -280,62 +241,7 @@ export default function KelasSayaPage() {
                 Kelas Saya
               </h2>
             </div>
-
-            {/* Tombol Tambah Kelas (Create) */}
-            <button
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#294371] hover:bg-blue-900 text-white font-semibold text-xs shadow-sm transition-all cursor-pointer w-fit"
-            >
-              <Plus className="w-4 h-4" />
-              <span>{showAddForm ? "Batal" : "Tambah Kelas"}</span>
-            </button>
           </div>
-
-          {/* Form Tambah Kelas Baru (Muncul saat tombol Tambah diklik) */}
-          {showAddForm && (
-            <form onSubmit={handleCreateClass} className="bg-[#CBE0FE] p-6 rounded-2xl space-y-4 shadow-sm text-slate-900">
-              <h3 className="text-sm font-bold text-slate-900">Form Tambah Kelas Baru</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input
-                  type="text"
-                  placeholder="Nama Mata Kuliah (misal: Pemrograman Framework)"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="p-3 bg-white rounded-xl text-xs text-black border border-blue-200 outline-none"
-                  required
-                />
-                <input
-                  type="text"
-                  placeholder="Kode Kelas (misal: PFA3)"
-                  value={classCode}
-                  onChange={(e) => setClassCode(e.target.value)}
-                  className="p-3 bg-white rounded-xl text-xs text-black border border-blue-200 outline-none"
-                />
-                <input
-                  type="text"
-                  placeholder="Ruangan / Nama Kelas (misal: Kelas A)"
-                  value={students}
-                  onChange={(e) => setStudents(e.target.value)}
-                  className="p-3 bg-white rounded-xl text-xs text-black border border-blue-200 outline-none"
-                />
-                <input
-                  type="text"
-                  placeholder="Jadwal (misal: Senin 10.20-13.00)"
-                  value={schedule}
-                  onChange={(e) => setSchedule(e.target.value)}
-                  className="p-3 bg-white rounded-xl text-xs text-black border border-blue-200 outline-none"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-5 py-2.5 rounded-xl bg-[#294371] hover:bg-blue-900 text-white font-semibold text-xs transition-all cursor-pointer flex items-center gap-2"
-              >
-                {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                <span>Simpan ke Database</span>
-              </button>
-            </form>
-          )}
 
           {/* Skenario Loading */}
           {loading && (
@@ -354,7 +260,7 @@ export default function KelasSayaPage() {
 
           {!loading && !errorMsg && myClasses.length === 0 && (
             <div className="py-12 text-center text-slate-500 dark:text-slate-400 text-sm">
-              Belum ada data kelas di database. Klik tombol <strong>Tambah Kelas</strong> di atas untuk membuat kelas pertama!
+              Belum ada data kelas di database.
             </div>
           )}
 

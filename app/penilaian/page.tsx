@@ -114,17 +114,35 @@ export default function PenilaianPage() {
     fetchPenilaian();
   }, [selectedClass]);
 
-  // Handler Perubahan Nilai Input Table
+  // Handler Perubahan Nilai Input Table (Batas Nilai 0 - 100)
   const handleScoreChange = (
     id: string,
     field: "tugas" | "kuis" | "uts" | "uas",
     value: number
   ) => {
+    const clampedValue = Math.min(100, Math.max(0, isNaN(value) ? 0 : value));
     setStudents((prev) =>
       prev.map((student) =>
-        student.id === id ? { ...student, [field]: value } : student
+        student.id === id ? { ...student, [field]: clampedValue } : student
       )
     );
+  };
+
+  // Handler Perubahan Bobot Nilai (Total akumulasi maksimal 100%)
+  const handleBobotChange = (
+    field: "tugas" | "kuis" | "uts" | "uas",
+    rawValue: number
+  ) => {
+    const val = Math.max(0, isNaN(rawValue) ? 0 : rawValue);
+    const otherTotal = Object.entries(bobot)
+      .filter(([key]) => key !== field)
+      .reduce((sum, [, v]) => sum + (Number(v) || 0), 0);
+    const maxAllowed = Math.max(0, 100 - otherTotal);
+    const clamped = Math.min(val, maxAllowed);
+    setBobot((prev) => ({
+      ...prev,
+      [field]: clamped,
+    }));
   };
 
   // 3. Simpan Nilai ke Backend Database MySQL
@@ -181,7 +199,7 @@ export default function PenilaianPage() {
   return (
     <div className="min-h-screen bg-white dark:bg-black text-slate-900 dark:text-white flex flex-col md:flex-row font-sans transition-colors duration-200">
       {/* ---------------- SIDEBAR LEFT ---------------- */}
-      <aside className="w-full md:w-64 bg-[#182B4E] text-white flex flex-col justify-between shrink-0 min-h-screen relative z-20">
+      <aside className="w-full md:w-64 bg-[#182B4E] text-white flex flex-col justify-between shrink-0 md:h-screen md:sticky md:top-0 md:overflow-y-auto relative z-20">
         <div>
           {/* Logo Brand */}
           <div className="p-6 flex items-center gap-3">
@@ -427,9 +445,11 @@ export default function PenilaianPage() {
                 </label>
                 <input
                   type="number"
+                  min={0}
+                  max={100}
                   value={bobot.tugas}
                   onChange={(e) =>
-                    setBobot({ ...bobot, tugas: Number(e.target.value) })
+                    handleBobotChange("tugas", Number(e.target.value))
                   }
                   className="w-full bg-[#294371] dark:bg-[#253D68] text-white text-xs font-medium px-4 py-2 rounded-xl focus:outline-none shadow-xs"
                 />
@@ -442,9 +462,11 @@ export default function PenilaianPage() {
                 </label>
                 <input
                   type="number"
+                  min={0}
+                  max={100}
                   value={bobot.kuis}
                   onChange={(e) =>
-                    setBobot({ ...bobot, kuis: Number(e.target.value) })
+                    handleBobotChange("kuis", Number(e.target.value))
                   }
                   className="w-full bg-[#294371] dark:bg-[#253D68] text-white text-xs font-medium px-4 py-2 rounded-xl focus:outline-none shadow-xs"
                 />
@@ -457,9 +479,11 @@ export default function PenilaianPage() {
                 </label>
                 <input
                   type="number"
+                  min={0}
+                  max={100}
                   value={bobot.uts}
                   onChange={(e) =>
-                    setBobot({ ...bobot, uts: Number(e.target.value) })
+                    handleBobotChange("uts", Number(e.target.value))
                   }
                   className="w-full bg-[#294371] dark:bg-[#253D68] text-white text-xs font-medium px-4 py-2 rounded-xl focus:outline-none shadow-xs"
                 />
@@ -472,9 +496,11 @@ export default function PenilaianPage() {
                 </label>
                 <input
                   type="number"
+                  min={0}
+                  max={100}
                   value={bobot.uas}
                   onChange={(e) =>
-                    setBobot({ ...bobot, uas: Number(e.target.value) })
+                    handleBobotChange("uas", Number(e.target.value))
                   }
                   className="w-full bg-[#294371] dark:bg-[#253D68] text-white text-xs font-medium px-4 py-2 rounded-xl focus:outline-none shadow-xs"
                 />
@@ -531,6 +557,8 @@ export default function PenilaianPage() {
                           <td className="py-3.5 px-4 text-center">
                             <input
                               type="number"
+                              min={0}
+                              max={100}
                               value={student.tugas}
                               onChange={(e) =>
                                 handleScoreChange(student.id, "tugas", Number(e.target.value))
@@ -543,6 +571,8 @@ export default function PenilaianPage() {
                           <td className="py-3.5 px-4 text-center">
                             <input
                               type="number"
+                              min={0}
+                              max={100}
                               value={student.kuis}
                               onChange={(e) =>
                                 handleScoreChange(student.id, "kuis", Number(e.target.value))
@@ -555,6 +585,8 @@ export default function PenilaianPage() {
                           <td className="py-3.5 px-4 text-center">
                             <input
                               type="number"
+                              min={0}
+                              max={100}
                               value={student.uts}
                               onChange={(e) =>
                                 handleScoreChange(student.id, "uts", Number(e.target.value))
@@ -567,6 +599,8 @@ export default function PenilaianPage() {
                           <td className="py-3.5 px-4 text-center">
                             <input
                               type="number"
+                              min={0}
+                              max={100}
                               value={student.uas}
                               onChange={(e) =>
                                 handleScoreChange(student.id, "uas", Number(e.target.value))
