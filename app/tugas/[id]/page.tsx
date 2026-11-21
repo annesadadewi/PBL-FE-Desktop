@@ -243,13 +243,13 @@ export default function DetailPengumpulanTugasPage() {
           <div className="flex items-center gap-4">
             <Link
               href="/tugas"
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 transition-colors"
+              title="Kembali ke Tugas"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Kembali ke Tugas</span>
             </Link>
-            <h1 className="text-lg md:text-xl font-bold text-black dark:text-white tracking-tight hidden sm:block">
-              Pengumpulan & Penilaian Tugas
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+              Semester Ganjil 2026/2027
             </h1>
           </div>
 
@@ -257,20 +257,20 @@ export default function DetailPengumpulanTugasPage() {
           <div className="flex items-center gap-3">
             <div className="text-right">
               <div className="text-sm font-bold text-black dark:text-white leading-tight">
-                {user?.name || user?.nama || "Dosen Pengampu"}
+                {user?.name || user?.nama || "Mister Potato"}
               </div>
               <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                 {user?.fakultas || "Fakultas Vokasi"}
               </div>
             </div>
             <div className="w-10 h-10 rounded-xl bg-[#182B4E] text-white flex items-center justify-center font-bold text-base shadow-sm">
-              {(user?.name || user?.nama || "D").charAt(0).toUpperCase()}
+              {(user?.name || user?.nama || "M").charAt(0).toUpperCase()}
             </div>
           </div>
         </header>
 
         {/* KONTEN DETAIL PENGUMPULAN */}
-        <main className="flex-1 overflow-y-auto p-8 space-y-6">
+        <main className="flex-1 overflow-y-auto p-8 space-y-4">
           {/* Loading State */}
           {loading && (
             <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-500 dark:text-slate-400">

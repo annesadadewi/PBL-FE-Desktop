@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -43,6 +43,8 @@ export default function TugasPage() {
   const [newClassId, setNewClassId] = useState<number>(1);
   const [newDueDate, setNewDueDate] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [newFile, setNewFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formError, setFormError] = useState("");
 
   // State User Profil dari LocalStorage
@@ -150,14 +152,19 @@ export default function TugasPage() {
 
     try {
       setSubmitting(true);
+
+      const formData = new FormData();
+      formData.append("class_id", String(newClassId));
+      formData.append("title", trimmedTitle);
+      formData.append("description", newDescription || "Tugas reguler praktikum");
+      formData.append("deadline", newDueDate);
+      if (newFile) {
+        formData.append("lampiran", newFile);
+      }
+
       await apiFetch("/tugas", {
         method: "POST",
-        body: JSON.stringify({
-          class_id: newClassId,
-          title: trimmedTitle,
-          description: newDescription || "Tugas reguler praktikum",
-          deadline: newDueDate,
-        }),
+        body: formData,
       });
 
       // Reset & Refresh Data
@@ -165,6 +172,10 @@ export default function TugasPage() {
       setNewTitle("");
       setNewDueDate("");
       setNewDescription("");
+      setNewFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
       setFormError("");
       fetchTasks();
     } catch (err: any) {
@@ -499,6 +510,50 @@ export default function TugasPage() {
                 />
               </div>
 
+              {/* Deskripsi */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Deskripsi</label>
+                <textarea
+                  rows={3}
+                  value={newDescription}
+                  onChange={(e) => setNewDescription(e.target.value)}
+                  placeholder="Masukkan deskripsi tugas..."
+                  className="w-full bg-[#BFDBFE] text-slate-900 placeholder-slate-500 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl focus:outline-none font-medium resize-none"
+                />
+              </div>
+
+              {/* Lampiran */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Lampiran</label>
+                <div className="w-full bg-[#BFDBFE] p-1.5 rounded-xl flex items-center gap-3">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.rar,.png,.jpg,.jpeg"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setNewFile(e.target.files[0]);
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="bg-[#26426B] hover:bg-[#1B365D] text-white text-xs font-medium px-4 py-2 rounded-lg cursor-pointer transition-colors shadow-sm shrink-0"
+                  >
+                    Choose File
+                  </button>
+                  <span
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-xs text-slate-600 truncate cursor-pointer select-none"
+                    title={newFile ? newFile.name : "No file chosen"}
+                  >
+                    {newFile ? newFile.name : "No file chosen"}
+                  </span>
+                </div>
+              </div>
+
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700">Kelas</label>
                 <select
@@ -529,14 +584,16 @@ export default function TugasPage() {
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="bg-[#2B4B7C] hover:bg-[#1e365a] text-white text-xs sm:text-sm font-semibold px-5 py-2.5 rounded-xl shadow-md transition-all cursor-pointer mt-2 flex items-center gap-2"
-              >
-                {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                <span>Simpan Tugas</span>
-              </button>
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="bg-[#26426B] hover:bg-[#1B365D] text-white text-xs sm:text-sm font-semibold px-6 py-2.5 rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2"
+                >
+                  {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Simpan Tugas</span>
+                </button>
+              </div>
             </form>
           </div>
         </div>
