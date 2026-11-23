@@ -142,34 +142,42 @@ export default function KehadiranPage() {
       const res = await apiFetch(`/kehadiran${queryString}`, { method: "GET" });
       const data = Array.isArray(res) ? res : res.data || [];
 
-      // Map data backend ke format interface Student dengan pengaman variasi nama
-      const mappedStudents: Student[] = data.map((item: any, idx: number) => ({
-        id: String(item.id || item._id || idx + 1),
-        name:
+      // Map data backend ke format interface Student dengan pengaman deduplikasi nama per mahasiswa
+      const studentMap = new Map<string, Student>();
+      data.forEach((item: any, idx: number) => {
+        const sName =
           item.student_name ||
           item.studentName ||
           item.nama_mahasiswa ||
           item.user?.name ||
           item.name ||
-          `Mahasiswa ${idx + 1}`,
-        nim: item.nim || item.nim_mahasiswa || `22010100${idx + 1}`,
-        status: (item.status === "Alpa" ? "Alpha" : item.status) || "Hadir",
-        course: item.course || selectedCourse,
-        kelasId: item.kelasId || item.class_id || kId,
-        nomor: item.nomor || meetingNum,
-        finalScore: item.finalScore || 85.0,
-        gradeHistory: item.gradeHistory || "Tugas 88 · Kuis 80 · UTS 84 · UAS 88",
-        notes: item.notes || "Aktif dan tepat waktu mengumpulkan tugas",
-      }));
+          `Mahasiswa ${idx + 1}`;
+        const key = sName.toLowerCase().trim();
 
-      // Jika database backend belum punya data kehadiran sama sekali untuk kombinasi ini, berikan fallback
+        if (!studentMap.has(key)) {
+          studentMap.set(key, {
+            id: String(item.id || item._id || idx + 1),
+            name: sName,
+            nim: item.nim || item.nim_mahasiswa || `22010100${idx + 1}`,
+            status: (item.status === "Alpa" ? "Alpha" : item.status) || "Hadir",
+            course: item.course || selectedCourse,
+            kelasId: item.kelasId || item.class_id || kId,
+            nomor: item.nomor || meetingNum,
+            finalScore: item.finalScore || 85.0,
+            gradeHistory: item.gradeHistory || "Tugas 88 · Kuis 80 · UTS 84 · UAS 88",
+            notes: item.notes || "Aktif dan tepat waktu mengumpulkan tugas",
+          });
+        }
+      });
+      const mappedStudents: Student[] = Array.from(studentMap.values());
+
+      // Jika tidak ada data di DB untuk pertemuan ini, tampilkan 4 mahasiswa dengan default Hadir (siap diinput)
       if (mappedStudents.length === 0) {
         setStudents([
-          { id: "1", name: "Anne Sada Dewi", nim: "220101001", status: "Hadir", course: selectedCourse, kelasId: kId, nomor: meetingNum, finalScore: 87.5, gradeHistory: "Tugas 90 · Kuis 82 · UTS 85 · UAS 90", notes: "Menunjukkan konsistensi baik dalam diskusi" },
-          { id: "2", name: "Sheren Annabelle", nim: "220101002", status: "Hadir", course: selectedCourse, kelasId: kId, nomor: meetingNum, finalScore: 85.0, gradeHistory: "Tugas 88 · Kuis 80 · UTS 84 · UAS 88", notes: "Aktif dan tepat waktu mengumpulkan tugas" },
-          { id: "3", name: "Kayla Indah Pasha", nim: "220101003", status: "Hadir", course: selectedCourse, kelasId: kId, nomor: meetingNum, finalScore: 90.0, gradeHistory: "Tugas 92 · Kuis 88 · UTS 90 · UAS 90", notes: "Memiliki pemahaman konsep yang sangat mendalam" },
-          { id: "4", name: "Aulia Sabillah", nim: "220101004", status: "Hadir", course: selectedCourse, kelasId: kId, nomor: meetingNum, finalScore: 82.5, gradeHistory: "Tugas 85 · Kuis 78 · UTS 80 · UAS 87", notes: "Perlu ditingkatkan pada partisipasi praktikum" },
-          { id: "5", name: "Silvi Caroline Zebua", nim: "220101005", status: "Hadir", course: selectedCourse, kelasId: kId, nomor: meetingNum, finalScore: 88.0, gradeHistory: "Tugas 90 · Kuis 85 · UTS 86 · UAS 91", notes: "Sangat responsif saat tanya jawab di kelas" },
+          { id: "mhs-brooke", name: "Brooke Everly", nim: "254076512225017", status: "Hadir", course: selectedCourse, kelasId: kId, nomor: meetingNum },
+          { id: "mhs-chris", name: "Chris Redfield", nim: "254076512225018", status: "Hadir", course: selectedCourse, kelasId: kId, nomor: meetingNum },
+          { id: "mhs-nareswari", name: "Nareswari Ayu", nim: "220101004", status: "Hadir", course: selectedCourse, kelasId: kId, nomor: meetingNum },
+          { id: "mhs-sheren", name: "Sheren Annabelle", nim: "220101001", status: "Hadir", course: selectedCourse, kelasId: kId, nomor: meetingNum },
         ]);
       } else {
         setStudents(mappedStudents);

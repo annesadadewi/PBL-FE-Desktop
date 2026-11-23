@@ -83,31 +83,44 @@ export default function PenilaianPage() {
     try {
       setLoading(true);
       setErrorMsg("");
-      const res = await apiFetch("/penilaian", { method: "GET" });
+      // Cari kelasId dari selectedClass
+      const activeCls = classList.find((c: any) =>
+        (c.name + (c.classRoom ? ` - ${c.classRoom}` : "")) === selectedClass ||
+        c.name === selectedClass
+      );
+      const kelasId = activeCls?.id || "";
+      const endpoint = kelasId ? `/penilaian?kelasId=${kelasId}` : "/penilaian";
+      const res = await apiFetch(endpoint, { method: "GET" });
       const data = Array.isArray(res) ? res : res.data || [];
 
       if (data.length > 0) {
-        // Group data berdasarkan nama mahasiswa jika per tugas tersimpan terpisah
-        const mappedStudents: Student[] = data.map((item: any, idx: number) => ({
-          id: String(item.id || idx + 1),
-          name: item.student_name || item.studentName || item.name || "Mahasiswa",
-          nim: item.nim || `22010100${idx + 1}`,
-          tugas: Number(item.tugas || item.score || 85),
-          kuis: Number(item.kuis || 80),
-          uts: Number(item.uts || 85),
-          uas: Number(item.uas || 90),
-          kehadiran: "Hadir",
-          catatan: item.notes || "Hasil pengerjaan tugas konsisten dan rapi.",
-        }));
-        setStudents(mappedStudents);
+        // Kelompokkan data per mahasiswa agar tiap nama mahasiswa hanya muncul 1 kali tepat di tabel (tidak duplikat per tugas)
+        const studentMap = new Map<string, Student>();
+        data.forEach((item: any, idx: number) => {
+          const sName = item.student_name || item.studentName || item.name || "Mahasiswa";
+          const key = sName.toLowerCase().trim();
+          if (!studentMap.has(key)) {
+            studentMap.set(key, {
+              id: String(item.id || idx + 1),
+              name: sName,
+              nim: item.nim || `22010100${idx + 1}`,
+              tugas: Number(item.tugas ?? item.score ?? 0),
+              kuis: Number(item.kuis ?? 0),
+              uts: Number(item.uts ?? 0),
+              uas: Number(item.uas ?? 0),
+              kehadiran: "Hadir",
+              catatan: item.notes || (item.score ? "Hasil pengerjaan tugas konsisten dan rapi." : "Belum ada penilaian."),
+            });
+          }
+        });
+        setStudents(Array.from(studentMap.values()));
       } else {
-        // Data default awal dari database jika tabel masih kosong
+        // Data default awal dari database jika tabel masih kosong (default nilai 0)
         setStudents([
-          { id: "1", name: "Anne Sada Dewi", nim: "220101001", tugas: 95, kuis: 95, uts: 95, uas: 95, kehadiran: "Hadir", catatan: "Menunjukkan konsistensi baik dalam diskusi" },
-          { id: "2", name: "Sheren Annabelle", nim: "220101002", tugas: 92, kuis: 92, uts: 92, uas: 92, kehadiran: "Hadir", catatan: "Sangat aktif dan hasil pengerjaan sangat rapi" },
-          { id: "3", name: "Kayla Indah Pasha", nim: "220101003", tugas: 75, kuis: 75, uts: 75, uas: 75, kehadiran: "Hadir", catatan: "Perlu ditingkatkan partisipasi dalam kelompok" },
-          { id: "4", name: "Aulia Sabillah", nim: "220101004", tugas: 60, kuis: 60, uts: 60, uas: 60, kehadiran: "Hadir", catatan: "Sering terlambat mengumpulkan tugas tepat waktu" },
-          { id: "5", name: "Silvi Caroline Zebua", nim: "220101005", tugas: 80, kuis: 80, uts: 80, uas: 80, kehadiran: "Hadir", catatan: "Pemahaman materi cukup baik, terus tingkatkan" },
+          { id: "1", name: "Brooke Everly", nim: "254076512225017", tugas: 0, kuis: 0, uts: 0, uas: 0, kehadiran: "Hadir", catatan: "Belum ada penilaian" },
+          { id: "2", name: "Chris Redfield", nim: "254076512225018", tugas: 0, kuis: 0, uts: 0, uas: 0, kehadiran: "Hadir", catatan: "Belum ada penilaian" },
+          { id: "3", name: "Nareswari Ayu", nim: "220101004", tugas: 0, kuis: 0, uts: 0, uas: 0, kehadiran: "Hadir", catatan: "Belum ada penilaian" },
+          { id: "4", name: "Sheren Annabelle", nim: "220101001", tugas: 0, kuis: 0, uts: 0, uas: 0, kehadiran: "Hadir", catatan: "Belum ada penilaian" },
         ]);
       }
     } catch (err: any) {
@@ -155,6 +168,14 @@ export default function PenilaianPage() {
 
   // 3. Simpan Nilai ke Backend Database MySQL
   const handleSavePenilaian = async () => {
+    const totalBobot = bobot.tugas + bobot.kuis + bobot.uts + bobot.uas;
+    if (totalBobot !== 100) {
+      alert(
+        `Total akumulasi bobot harus tepat 100%! Saat ini baru mencapai ${totalBobot}% (kurang ${100 - totalBobot}%). Silakan sesuaikan bobot terlebih dahulu sebelum menyimpan.`
+      );
+      return;
+    }
+
     try {
       setSaving(true);
       const activeCls = classList.find((c: any) =>
@@ -183,15 +204,13 @@ export default function PenilaianPage() {
     }
   };
 
-  // Fungsi Hitung Nilai Akhir Berdasarkan Bobot
+  // Fungsi Hitung Nilai Akhir Berdasarkan Bobot (dibagi 100)
   const calculateFinalScore = (student: Student) => {
-    const totalBobot = bobot.tugas + bobot.kuis + bobot.uts + bobot.uas || 100;
     const score =
       (student.tugas * bobot.tugas +
         student.kuis * bobot.kuis +
         student.uts * bobot.uts +
-        student.uas * bobot.uas) /
-      totalBobot;
+        student.uas * bobot.uas) / 100;
     return score.toFixed(1);
   };
 
@@ -411,6 +430,22 @@ export default function PenilaianPage() {
 
           {/* BOX FILTER KELAS & BOBOT PENILAIAN */}
           <div className="bg-[#CBE0FE] text-slate-900 p-5 rounded-2xl space-y-4 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1 border-b border-blue-200/60">
+              <span className="text-xs font-bold text-slate-800">
+                Pengaturan Bobot Penilaian
+              </span>
+              {bobot.tugas + bobot.kuis + bobot.uts + bobot.uas === 100 ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-bold">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  Total Bobot: 100% (Sesuai)
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 text-rose-800 border border-rose-300 text-[11px] font-bold animate-pulse">
+                  ⚠ Total Bobot: {bobot.tugas + bobot.kuis + bobot.uts + bobot.uas}% (Kurang {100 - (bobot.tugas + bobot.kuis + bobot.uts + bobot.uas)}%, harus 100%)
+                </span>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
               {/* Dropdown Filter Kelas */}
               <div className="relative">

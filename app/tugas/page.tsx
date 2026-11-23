@@ -40,7 +40,7 @@ export default function TugasPage() {
 
   // Form State Modal
   const [newTitle, setNewTitle] = useState("");
-  const [newClassId, setNewClassId] = useState<number>(1);
+  const [newClassId, setNewClassId] = useState<string>("");
   const [newDueDate, setNewDueDate] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [newFile, setNewFile] = useState<File | null>(null);
@@ -68,7 +68,7 @@ export default function TugasPage() {
         const data = Array.isArray(res) ? res : res.data || [];
         setClassList(data);
         if (data.length > 0) {
-          setNewClassId(data[0].id || 1);
+          setNewClassId(String(data[0].id) || "");
         }
       } catch (err: any) {
         console.error("Gagal mengambil data kelas:", err);
@@ -558,7 +558,7 @@ export default function TugasPage() {
                 <label className="text-xs font-semibold text-slate-700">Kelas</label>
                 <select
                   value={newClassId}
-                  onChange={(e) => setNewClassId(Number(e.target.value))}
+                  onChange={(e) => setNewClassId(e.target.value)}
                   className="w-full bg-[#BFDBFE] text-slate-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl focus:outline-none font-medium cursor-pointer"
                 >
                   {classList.length > 0 ? (
