@@ -396,12 +396,14 @@ export default function TugasPage() {
               </h1>
             </div>
 
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="bg-[#2B4B7C] hover:bg-[#1e365a] text-white text-xs sm:text-sm font-semibold px-5 py-2.5 rounded-xl shadow-md transition-all cursor-pointer"
-            >
-              Tambah Tugas
-            </button>
+            {user?.role?.toLowerCase() !== "mahasiswa" && (
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="bg-[#2B4B7C] hover:bg-[#1e365a] text-white text-xs sm:text-sm font-semibold px-5 py-2.5 rounded-xl shadow-md transition-all cursor-pointer"
+              >
+                Tambah Tugas
+              </button>
+            )}
           </div>
 
           {/* Filter Dropdown Status */}
@@ -432,13 +434,15 @@ export default function TugasPage() {
                   <div>
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-slate-700 font-medium">{task.subject}</p>
-                      <button
-                        onClick={() => handleDeleteTask(task.id, task.title)}
-                        className="text-red-600 hover:text-red-800 p-1 transition-colors cursor-pointer"
-                        title="Hapus Tugas"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {user?.role?.toLowerCase() !== "mahasiswa" && (
+                        <button
+                          onClick={() => handleDeleteTask(task.id, task.title)}
+                          className="text-red-600 hover:text-red-800 p-1 transition-colors cursor-pointer"
+                          title="Hapus Tugas"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                     <h3 className="text-base font-bold text-slate-950 mt-1">
                       <Link
@@ -459,10 +463,19 @@ export default function TugasPage() {
                       </p>
                     </div>
 
-                    <div>
+                    <div className="flex items-center justify-between gap-2">
                       <span className="inline-block bg-white text-slate-800 text-[11px] font-semibold px-3 py-1 rounded-full shadow-xs">
                         {task.status}
                       </span>
+
+                      <Link
+                        href={`/tugas/${task.id}`}
+                        className="inline-block bg-[#182B4E] hover:bg-[#12203b] text-white text-[11px] font-semibold px-3 py-1 rounded-lg transition-colors"
+                      >
+                        {user?.role?.toLowerCase() === "mahasiswa"
+                          ? "Kumpulkan Tugas"
+                          : "Lihat Pengumpulan"}
+                      </Link>
                     </div>
                   </div>
                 </div>

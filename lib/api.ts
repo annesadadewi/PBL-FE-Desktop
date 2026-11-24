@@ -1,6 +1,20 @@
 // API base URL (bisa di‑override lewat env NEXT_PUBLIC_API_URL)
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api";
+
+/**
+ * Mengubah URL file (baik URL Cloudinary penuh https://... maupun path relatif /uploads/...)
+ * menjadi URL yang siap dibuka di browser.
+ */
+export function resolveFileUrl(url?: string | null): string | null {
+  if (!url || !url.trim()) return null;
+  const trimmed = url.trim();
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  const backendOrigin = API_BASE_URL.replace(/\/api\/?$/, "");
+  return `${backendOrigin}${trimmed.startsWith("/") ? trimmed : `/${trimmed}`}`;
+}
 
 /**
  * Helper fetch yang otomatis menambahkan token JWT (jika ada) dan meng‑handle error.

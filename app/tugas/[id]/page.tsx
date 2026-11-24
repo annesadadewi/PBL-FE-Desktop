@@ -14,6 +14,7 @@ import {
 import TugasSummaryCard from "@/components/features/tugas/TugasSummaryCard";
 import TugasPengumpulanTable from "@/components/features/tugas/TugasPengumpulanTable";
 import ModalPenilaianTugas from "@/components/features/tugas/ModalPenilaianTugas";
+import FormPengumpulanTugas from "@/components/features/tugas/FormPengumpulanTugas";
 
 export default function DetailPengumpulanTugasPage() {
   const params = useParams();
@@ -293,11 +294,18 @@ export default function DetailPengumpulanTugasPage() {
               {/* 1. Kartu Ringkasan Tugas */}
               <TugasSummaryCard tugas={tugas} statistik={statistik} />
 
-              {/* 2. Filter, Pencarian, & Tabel Pengumpulan */}
-              <TugasPengumpulanTable
-                daftarPengumpulan={daftarPengumpulan}
-                onOpenNilaiModal={handleOpenNilaiModal}
-              />
+              {/* 2. Form Pengumpulan Tugas Mahasiswa (upload ke Cloudinary) atau Tabel Penilaian Dosen */}
+              {user?.role?.toLowerCase() === "mahasiswa" ? (
+                <FormPengumpulanTugas
+                  taskId={taskId}
+                  onSubmitted={loadPengumpulanData}
+                />
+              ) : (
+                <TugasPengumpulanTable
+                  daftarPengumpulan={daftarPengumpulan}
+                  onOpenNilaiModal={handleOpenNilaiModal}
+                />
+              )}
             </>
           )}
         </main>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { PengumpulanMahasiswa, DetailTugasInfo } from "@/types/tugas";
+import { resolveFileUrl } from "@/lib/api";
 import { X, Loader2 } from "lucide-react";
 
 interface ModalPenilaianTugasProps {
@@ -118,37 +119,62 @@ export default function ModalPenilaianTugas({
               Lampiran Tugas
             </label>
 
-            {/* Kotak Merah Muda untuk File PDF */}
-            <div className="bg-[#FFE5E5] border border-red-200 rounded-xl px-4 py-3 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2 min-w-0 pr-2">
-                <svg
-                  className="w-4 h-4 text-red-600 shrink-0"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <path d="M10 12v6" />
-                  <path d="M7 15h6" />
-                </svg>
-                <span className="text-red-700 font-medium truncate">
-                  {submission.fileName || "Laporan_Proyek_Klasifikasi Data"}
-                </span>
-              </div>
+            {resolveFileUrl(submission.fileUrl) ? (
+              <div className="bg-[#FFE5E5] border border-red-200 rounded-xl px-4 py-3 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 min-w-0 pr-2">
+                  <svg
+                    className="w-4 h-4 text-red-600 shrink-0"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <path d="M10 12v6" />
+                    <path d="M7 15h6" />
+                  </svg>
+                  <span className="text-red-700 font-medium truncate">
+                    {submission.fileName || "File Tugas Mahasiswa"}
+                  </span>
+                </div>
 
-              <a
-                href={submission.fileUrl || "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-red-700 font-bold hover:underline shrink-0 cursor-pointer"
-              >
-                Lihat PDF
-              </a>
-            </div>
+                <a
+                  href={resolveFileUrl(submission.fileUrl) || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-red-700 font-bold hover:underline shrink-0 cursor-pointer"
+                >
+                  Lihat File
+                </a>
+              </div>
+            ) : (
+              <div className="bg-slate-100 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-500 italic">
+                Tidak ada file lampiran
+              </div>
+            )}
+
+            {submission.linkRepo && (
+              <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs">
+                <span className="text-slate-700 font-medium truncate pr-2">
+                  {submission.linkRepo}
+                </span>
+                <a
+                  href={
+                    submission.linkRepo.startsWith("http")
+                      ? submission.linkRepo
+                      : `https://github.com/${submission.linkRepo}`
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#1B365D] font-bold hover:underline shrink-0"
+                >
+                  Buka Link
+                </a>
+              </div>
+            )}
           </div>
 
           {/* Input Skor Penilaian (0-100) */}
