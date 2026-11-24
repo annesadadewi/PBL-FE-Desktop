@@ -1,118 +1,103 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import {
-  UploadCloud,
-  FileText,
-  Link as LinkIcon,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
-  Trash2,
+import React, { useState, useEffect, useRef } from "react";
+import { 
+  UploadCloud, 
+  FileText, 
+  CheckCircle2, 
+  AlertCircle, 
+  Clock, 
+  Trash2, 
+  Loader2, 
+  Download,
   ExternalLink,
+  Edit
 } from "lucide-react";
 import { pengumpulanService } from "@/services/pengumpulanService";
-import { resolveFileUrl } from "@/lib/api";
 import { PengumpulanMahasiswa } from "@/types/tugas";
+import { resolveFileUrl } from "@/lib/api";
+
+const GithubIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+  </svg>
+);
 
 interface FormPengumpulanTugasProps {
   taskId: string;
-  onSubmitted?: () => void;
+  onSubmitted: () => void;
 }
-
-const ACCEPTED_EXTENSIONS =
-  ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.rar,.png,.jpg,.jpeg,.webp";
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
 export default function FormPengumpulanTugas({
   taskId,
   onSubmitted,
 }: FormPengumpulanTugasProps) {
-  const [loadingInitial, setLoadingInitial] = useState(true);
   const [submission, setSubmission] = useState<PengumpulanMahasiswa | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [linkRepo, setLinkRepo] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
-
+  // Form Fields
+  const [file, setFile] = useState<File | null>(null);
+  const [linkRepo, setLinkRepo] = useState<string>("");
+  const [errorMsg, setErrorMsg] = useState<string>("");
+  const [successMsg, setSuccessMsg] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const loadMySubmission = async () => {
+  const fetchMySubmission = async () => {
     try {
-      setLoadingInitial(true);
+      setLoading(true);
+      setErrorMsg("");
       const res = await pengumpulanService.getMyPengumpulan(taskId);
-      setSubmission(res.data || null);
-      if (res.data?.linkRepo) {
-        setLinkRepo(res.data.linkRepo);
+      if (res && res.submitted && res.data) {
+        setSubmission(res.data);
+        setLinkRepo(res.data.linkRepo || "");
+        setIsEditing(false);
+      } else {
+        setSubmission(null);
+        setIsEditing(true);
       }
     } catch (err: any) {
-      // Abaikan jika belum login atau belum ada pengumpulan
-      console.warn("Gagal memuat status pengumpulan saya:", err?.message || err);
+      console.warn("Gagal mengambil data pengumpulan saya:", err);
+      setSubmission(null);
+      setIsEditing(true);
     } finally {
-      setLoadingInitial(false);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     if (taskId) {
-      loadMySubmission();
+      fetchMySubmission();
     }
   }, [taskId]);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setErrorMsg("");
-    setSuccessMsg("");
-    const file = e.target.files?.[0] || null;
-    if (!file) {
-      setSelectedFile(null);
-      return;
-    }
-
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      setErrorMsg("Ukuran file terlalu besar. Maksimal ukuran file adalah 10MB.");
-      e.target.value = "";
-      setSelectedFile(null);
-      return;
-    }
-
-    setSelectedFile(file);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
     setSuccessMsg("");
 
-    const trimmedRepo = linkRepo.trim();
-    if (!selectedFile && !trimmedRepo) {
-      setErrorMsg("Pilih file tugas atau masukkan tautan repository terlebih dahulu.");
-      return;
-    }
-
-    if (trimmedRepo && !/^https?:\/\/.+/i.test(trimmedRepo)) {
-      setErrorMsg("Tautan repository harus diawali dengan http:// atau https://.");
+    if (!file && !linkRepo.trim()) {
+      setErrorMsg("Harap unggah dokumen berkas atau masukkan tautan repositori.");
       return;
     }
 
     try {
       setSubmitting(true);
-      const res = await pengumpulanService.submitPengumpulan(taskId, {
-        file: selectedFile,
-        linkRepo: trimmedRepo || undefined,
+      await pengumpulanService.submitPengumpulan(taskId, {
+        file,
+        linkRepo: linkRepo.trim() || undefined,
       });
 
-      setSubmission(res.data);
-      setSelectedFile(null);
+      setSuccessMsg("Tugas berhasil dikumpulkan!");
+      setFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-      setSuccessMsg(res.message || "Tugas berhasil dikumpulkan ke Cloudinary!");
-      onSubmitted?.();
+      await fetchMySubmission();
+      onSubmitted();
     } catch (err: any) {
-      setErrorMsg(err?.message || "Gagal mengirim pengumpulan tugas.");
+      setErrorMsg(err.message || "Gagal mengumpulkan tugas.");
     } finally {
       setSubmitting(false);
     }
@@ -122,202 +107,265 @@ export default function FormPengumpulanTugas({
     if (!confirm("Apakah Anda yakin ingin membatalkan pengumpulan tugas ini?")) return;
 
     try {
-      setDeleting(true);
-      setErrorMsg("");
-      setSuccessMsg("");
+      setSubmitting(true);
       await pengumpulanService.deleteMyPengumpulan(taskId);
       setSubmission(null);
-      setSelectedFile(null);
+      setIsEditing(true);
+      setFile(null);
       setLinkRepo("");
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
       setSuccessMsg("Pengumpulan tugas berhasil dibatalkan.");
-      onSubmitted?.();
+      onSubmitted();
     } catch (err: any) {
-      setErrorMsg(err?.message || "Gagal membatalkan pengumpulan tugas.");
+      setErrorMsg(err.message || "Gagal membatalkan pengumpulan.");
     } finally {
-      setDeleting(false);
+      setSubmitting(false);
     }
   };
 
-  const isGraded =
-    submission?.statusPenilaian === "Sudah Dinilai" ||
-    (submission?.nilai !== null && submission?.nilai !== undefined);
-  const existingFileHref = resolveFileUrl(submission?.fileUrl);
+  if (loading) {
+    return (
+      <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-3xl p-8 flex items-center justify-center gap-3 text-slate-500">
+        <Loader2 className="w-5 h-5 animate-spin text-[#182B4E]" />
+        <span className="text-sm font-medium">Memeriksa status pengumpulan tugas Anda...</span>
+      </div>
+    );
+  }
 
+  // Tampilan jika sudah mengumpulkan dan tidak dalam mode edit
+  if (submission && !isEditing) {
+    const fileUrl = submission.fileUrl ? resolveFileUrl(submission.fileUrl) : null;
+    const isGraded = submission.statusPenilaian === "Sudah Dinilai" || (submission.nilai !== null && submission.nilai !== undefined);
+
+    return (
+      <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 shadow-xs space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                Tugas Anda Sudah Dikumpulkan
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Diserahkan pada {submission.waktuPengumpulan}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+              submission.statusWaktu === "Terlambat"
+                ? "bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200"
+                : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200"
+            }`}>
+              <Clock className="w-3.5 h-3.5" />
+              {submission.statusWaktu}
+            </span>
+
+            {/* Tombol Batalkan / Ubah Pengumpulan */}
+            <button
+              onClick={() => setIsEditing(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+            >
+              <Edit className="w-3.5 h-3.5" />
+              <span>Ubah</span>
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={submitting}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Batal Serahkan</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Status Penilaian Dosen */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-2">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+              Status Penilaian Dosen:
+            </span>
+            <div className="flex items-center gap-3">
+              <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
+                isGraded
+                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200"
+                  : "bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200"
+              }`}>
+                {isGraded ? "Sudah Dinilai" : "Menunggu Evaluasi Dosen"}
+              </span>
+              {isGraded && (
+                <span className="text-2xl font-extrabold text-slate-900 dark:text-white">
+                  {submission.nilai} <span className="text-xs font-normal text-slate-400">/ 100</span>
+                </span>
+              )}
+            </div>
+            {submission.catatan && (
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-2 bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                <strong>Catatan Dosen:</strong> {submission.catatan}
+              </p>
+            )}
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-3 text-xs">
+            <span className="font-semibold text-slate-500 dark:text-slate-400">
+              Berkas & Lampiran Terkirim:
+            </span>
+            {submission.fileName ? (
+              <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2 truncate pr-2">
+                  <FileText className="w-4 h-4 text-blue-500 shrink-0" />
+                  <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                    {submission.fileName}
+                  </span>
+                </div>
+                {fileUrl && (
+                  <a
+                    href={fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 font-bold hover:underline shrink-0"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Unduh</span>
+                  </a>
+                )}
+              </div>
+            ) : (
+              <p className="text-slate-400 italic">Tidak ada berkas file diunggah.</p>
+            )}
+
+            {submission.linkRepo && (
+              <div className="pt-1">
+                <a
+                  href={submission.linkRepo}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold hover:text-blue-600 transition-colors"
+                >
+                  <GithubIcon className="w-4 h-4" />
+                  <span className="truncate max-w-[280px]">{submission.linkRepo}</span>
+                  <ExternalLink className="w-3 h-3 opacity-60" />
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Form input pengumpulan tugas
   return (
-    <div className="bg-[#CBE0FF] rounded-2xl p-5 shadow-sm space-y-4 text-slate-900">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+    <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 shadow-xs space-y-6">
+      <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
         <div>
-          <h2 className="text-base sm:text-lg font-bold text-[#1B365D]">
-            Pengumpulan Tugas Saya
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+            {submission ? "Perbarui Pengumpulan Tugas" : "Form Pengumpulan Tugas Mahasiswa"}
           </h2>
-          <p className="text-xs text-slate-700 font-medium">
-            Unggah file tugas Anda (disimpan otomatis di Cloudinary, maks. 10MB).
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Unggah dokumen laporan atau masukkan tautan repositori tugas Anda.
           </p>
         </div>
 
-        {!loadingInitial && (
-          <span
-            className={`inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-1.5 rounded-full w-fit ${
-              submission
-                ? isGraded
-                  ? "bg-[#C7F0C2] text-[#1E4620]"
-                  : "bg-blue-100 text-[#1B365D]"
-                : "bg-[#FEF7B9] text-[#7A6A00]"
-            }`}
+        {submission && (
+          <button
+            type="button"
+            onClick={() => setIsEditing(false)}
+            className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-white font-medium"
           >
-            {submission
-              ? isGraded
-                ? `Sudah Dinilai (${submission.nilai}/100)`
-                : `Sudah Dikumpulkan (${submission.statusWaktu})`
-              : "Belum Dikumpulkan"}
-          </span>
+            Batal Ubah
+          </button>
         )}
       </div>
 
-      {loadingInitial ? (
-        <div className="bg-[#E9F2FF] rounded-xl p-6 flex items-center justify-center gap-2 text-xs text-slate-600 font-medium">
-          <Loader2 className="w-4 h-4 animate-spin text-[#1B365D]" />
-          <span>Memeriksa status pengumpulan Anda...</span>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {errorMsg && (
-            <div className="p-3 rounded-xl bg-rose-100 border border-rose-300 text-rose-800 text-xs font-semibold flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
-
-          {successMsg && (
-            <div className="p-3 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-semibold flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>{successMsg}</span>
-            </div>
-          )}
-
-          {/* Ringkasan File yang Sudah Dikumpulkan */}
-          {submission && (
-            <div className="bg-[#E9F2FF] rounded-xl p-4 space-y-2.5 border border-blue-200">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-bold text-[#1B365D]">
-                  Lampiran Terkirim ({submission.waktuPengumpulan})
-                </p>
-                {!isGraded && (
-                  <button
-                    type="button"
-                    onClick={handleDelete}
-                    disabled={deleting}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-800 cursor-pointer disabled:opacity-50"
-                  >
-                    {deleting ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-3.5 h-3.5" />
-                    )}
-                    <span>Batalkan Pengumpulan</span>
-                  </button>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {existingFileHref && (
-                  <a
-                    href={existingFileHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 bg-[#FFF0F0] border border-[#FFCDD2] text-[#D32F2F] rounded-lg px-3 py-1.5 text-xs font-semibold hover:underline"
-                  >
-                    <FileText className="w-3.5 h-3.5 shrink-0" />
-                    <span className="max-w-[240px] truncate">
-                      {submission.fileName || "Lihat File Tugas"}
-                    </span>
-                    <ExternalLink className="w-3 h-3 shrink-0" />
-                  </a>
-                )}
-
-                {submission.linkRepo && (
-                  <a
-                    href={submission.linkRepo}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 bg-white border border-slate-200 text-slate-800 rounded-lg px-3 py-1.5 text-xs font-semibold hover:underline"
-                  >
-                    <LinkIcon className="w-3.5 h-3.5 shrink-0" />
-                    <span className="max-w-[240px] truncate">{submission.linkRepo}</span>
-                    <ExternalLink className="w-3 h-3 shrink-0" />
-                  </a>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Form Upload File ke Cloudinary */}
-          <form
-            onSubmit={handleSubmit}
-            className="bg-[#E9F2FF] rounded-xl p-4 space-y-4 border border-blue-200"
-          >
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-800 block">
-                {submission ? "Ganti File Tugas (Opsional)" : "Unggah File Tugas"}
-              </label>
-
-              <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#8DB5F8] bg-white/80 hover:bg-white rounded-xl p-5 cursor-pointer transition-colors">
-                <UploadCloud className="w-7 h-7 text-[#1B365D] mb-1.5" />
-                <span className="text-xs font-semibold text-slate-800 text-center">
-                  {selectedFile
-                    ? selectedFile.name
-                    : "Klik untuk memilih file (PDF, DOCX, PPTX, ZIP, RAR, PNG, JPG)"}
-                </span>
-                <span className="text-[11px] text-slate-500 mt-0.5">
-                  {selectedFile
-                    ? `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`
-                    : "Maksimal ukuran file 10MB"}
-                </span>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept={ACCEPTED_EXTENSIONS}
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-              </label>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-800 block">
-                Tautan Repository / Drive (Opsional)
-              </label>
-              <input
-                type="url"
-                value={linkRepo}
-                onChange={(e) => setLinkRepo(e.target.value)}
-                placeholder="https://github.com/username/nama-repo"
-                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1B365D]"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-1">
-              <button
-                type="submit"
-                disabled={submitting}
-                className="inline-flex items-center gap-2 bg-[#1B365D] hover:bg-[#152a48] text-white text-xs sm:text-sm font-semibold px-5 py-2.5 rounded-xl shadow-sm transition-all cursor-pointer disabled:opacity-60"
-              >
-                {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                <span>
-                  {submitting
-                    ? "Mengunggah ke Cloudinary..."
-                    : submission
-                      ? "Perbarui Pengumpulan"
-                      : "Kirim Tugas"}
-                </span>
-              </button>
-            </div>
-          </form>
+      {errorMsg && (
+        <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2.5">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{errorMsg}</span>
         </div>
       )}
+
+      {successMsg && (
+        <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2.5">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Input File */}
+        <div>
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+            Unggah Berkas Laporan / Tugas (PDF, DOCX, ZIP)
+          </label>
+          <div 
+            onClick={() => fileInputRef.current?.click()}
+            className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-400 rounded-2xl p-6 flex flex-col items-center justify-center gap-2 text-center cursor-pointer transition-colors bg-slate-50/50 dark:bg-slate-800/30"
+          >
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="hidden"
+              accept=".pdf,.doc,.docx,.zip,.rar,.png,.jpg"
+            />
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+              <UploadCloud className="w-6 h-6" />
+            </div>
+            {file ? (
+              <div className="space-y-0.5">
+                <p className="text-xs font-bold text-slate-900 dark:text-white">
+                  {file.name}
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  {(file.size / 1024 / 1024).toFixed(2)} MB - Klik untuk mengganti
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-0.5">
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Klik untuk memilih file dokumen
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  Format PDF, DOCX, atau ZIP (Maksimal 50MB)
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Input Link Repo */}
+        <div>
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+            Tautan Repositori GitHub / GitLab (Opsional)
+          </label>
+          <div className="relative">
+            <GithubIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="url"
+              placeholder="https://github.com/username/nama-repo"
+              value={linkRepo}
+              onChange={(e) => setLinkRepo(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        {/* Tombol Submit */}
+        <div className="flex items-center justify-end gap-3 pt-2">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-[#182B4E] hover:bg-[#12203b] shadow-md transition-all cursor-pointer disabled:opacity-50"
+          >
+            {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            <span>{submission ? "Perbarui Pengumpulan" : "Kumpulkan Tugas"}</span>
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

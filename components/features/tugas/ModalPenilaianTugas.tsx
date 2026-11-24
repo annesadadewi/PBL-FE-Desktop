@@ -1,16 +1,17 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { X, FileText, Loader2, AlertCircle } from "lucide-react";
 import { PengumpulanMahasiswa, DetailTugasInfo } from "@/types/tugas";
+import { pengumpulanService } from "@/services/pengumpulanService";
 import { resolveFileUrl } from "@/lib/api";
-import { X, Loader2 } from "lucide-react";
 
 interface ModalPenilaianTugasProps {
   isOpen: boolean;
   onClose: () => void;
   submission: PengumpulanMahasiswa | null;
   tugas: DetailTugasInfo;
-  onSuccess: (updatedSub: PengumpulanMahasiswa) => void;
+  onSuccess: (updatedItem: PengumpulanMahasiswa) => void;
 }
 
 export default function ModalPenilaianTugas({
@@ -20,186 +21,147 @@ export default function ModalPenilaianTugas({
   tugas,
   onSuccess,
 }: ModalPenilaianTugasProps) {
-  const [skor, setSkor] = useState<string>("");
+  const [score, setScore] = useState<string>("");
+  const [catatan, setCatatan] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
   useEffect(() => {
     if (submission) {
-      setSkor(
-        submission.nilai !== null && submission.nilai !== undefined
-          ? String(submission.nilai)
-          : ""
-      );
+      setScore(submission.nilai !== null && submission.nilai !== undefined ? String(submission.nilai) : "");
+      setCatatan(submission.catatan || "");
       setErrorMsg("");
     }
-  }, [submission]);
+  }, [submission, isOpen]);
 
   if (!isOpen || !submission) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const fileUrl = (submission.fileUrl ? resolveFileUrl(submission.fileUrl) : null) || "#";
+  const fileDisplay = (submission.fileName || "Laporan_Proyek_Klasifikasi Data").replace(/\.[^/.]+$/, "");
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
 
-    const parsedScore = Number(skor);
-    if (isNaN(parsedScore) || skor.trim() === "") {
-      setErrorMsg("Mohon masukkan nilai berupa angka.");
+    const numericScore = Number(score);
+    if (score === "" || isNaN(numericScore)) {
+      setErrorMsg("Nilai harus berupa angka valid.");
       return;
     }
-    if (parsedScore < 0 || parsedScore > 100) {
-      setErrorMsg("Nilai harus berada dalam rentang 0 hingga 100.");
+
+    if (numericScore < 0 || numericScore > 100) {
+      setErrorMsg("Nilai harus berada dalam rentang 0 sampai 100.");
       return;
     }
 
     try {
       setLoading(true);
-      const { pengumpulanService } = await import("@/services/pengumpulanService");
-      await pengumpulanService.updateNilai(submission.id, parsedScore);
+      await pengumpulanService.updateNilai(submission.id, numericScore, catatan);
 
-      onSuccess({
+      const updated: PengumpulanMahasiswa = {
         ...submission,
-        nilai: parsedScore,
+        nilai: numericScore,
         statusPenilaian: "Sudah Dinilai",
-      });
+        catatan: catatan || undefined,
+      };
 
+      onSuccess(updated);
       onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || "Gagal menyimpan nilai pengumpulan tugas.");
+      setErrorMsg(err.message || "Gagal menyimpan nilai pengumpulan.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-        {/* 1. HEADER MODAL NAVY GELAP (#1B365D) */}
-        <div className="bg-[#1B365D] text-white p-5 flex items-start justify-between relative rounded-t-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-2xs p-4 animate-in fade-in duration-150">
+      <div className="bg-white dark:bg-[#111827] w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl relative border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-150">
+        {/* 1. Header Dark Navy Persis Gambar */}
+        <div className="bg-[#182B4E] text-white p-4 px-6 flex items-start justify-between">
           <div>
-            <p className="text-xs text-slate-300 font-medium">
+            <p className="text-[11px] font-medium text-slate-300">
               Pengumpulan Tugas Mahasiswa
             </p>
-            <h3 className="text-base sm:text-lg font-bold text-white mt-1 pr-6 line-clamp-1">
+            <h2 className="text-base font-bold text-white tracking-tight mt-0.5">
               {tugas.judul || "Proyek Klasifikasi Data"}
-            </h3>
+            </h2>
           </div>
 
-          {/* Tombol Tutup Kotak Putih / Biru Muda X di Kanan Atas */}
           <button
             type="button"
             onClick={onClose}
-            className="w-7 h-7 bg-[#CBE0FF] hover:bg-white text-slate-900 rounded-lg flex items-center justify-center font-bold text-xs transition-colors cursor-pointer shrink-0"
-            title="Tutup Modal"
+            className="p-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
           >
-            <X className="w-4 h-4 text-slate-800" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* 2. BODY MODAL BIRU SANGAT MUDA (#EBF3FF) */}
-        <form onSubmit={handleSubmit} className="bg-[#EBF3FF] p-5 space-y-4 rounded-b-2xl">
+        {/* 2. Body Modal */}
+        <form onSubmit={handleSave} className="p-6 space-y-4">
           {errorMsg && (
-            <div className="p-2.5 bg-red-100 border border-red-300 text-red-700 text-xs font-semibold rounded-xl">
-              {errorMsg}
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMsg}</span>
             </div>
           )}
 
-          {/* Kartu Biru Muda Info Mahasiswa */}
-          <div className="bg-[#CBE0FF] rounded-xl p-3.5 space-y-0.5">
-            <h4 className="text-sm font-bold text-slate-900">
-              {submission.namaMahasiswa}
-            </h4>
-            <p className="text-xs text-slate-700 font-medium">
-              {submission.nim} . Dikumpulkan: {submission.waktuPengumpulan || "05 Okt 2026, 19:15"}
+          {/* Kotak Info Mahasiswa */}
+          <div className="bg-[#F0F4FC] dark:bg-slate-800/60 rounded-xl p-3.5 space-y-0.5 border border-slate-100 dark:border-slate-800">
+            <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
+              {submission.studentName}
+            </h3>
+            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              {submission.nim} • Dikumpulkan: {submission.waktuPengumpulan}
             </p>
           </div>
 
-          {/* Bagian Lampiran Tugas */}
+          {/* Lampiran Tugas */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-700 block">
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
               Lampiran Tugas
             </label>
-
-            {resolveFileUrl(submission.fileUrl) ? (
-              <div className="bg-[#FFE5E5] border border-red-200 rounded-xl px-4 py-3 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 min-w-0 pr-2">
-                  <svg
-                    className="w-4 h-4 text-red-600 shrink-0"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <path d="M10 12v6" />
-                    <path d="M7 15h6" />
-                  </svg>
-                  <span className="text-red-700 font-medium truncate">
-                    {submission.fileName || "File Tugas Mahasiswa"}
-                  </span>
-                </div>
-
-                <a
-                  href={resolveFileUrl(submission.fileUrl) || "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-red-700 font-bold hover:underline shrink-0 cursor-pointer"
-                >
-                  Lihat File
-                </a>
-              </div>
-            ) : (
-              <div className="bg-slate-100 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-500 italic">
-                Tidak ada file lampiran
-              </div>
-            )}
-
-            {submission.linkRepo && (
-              <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs">
-                <span className="text-slate-700 font-medium truncate pr-2">
-                  {submission.linkRepo}
+            <div className="bg-[#FEE2E2] dark:bg-rose-950/40 border border-rose-300 dark:border-rose-900 rounded-xl p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2.5 truncate pr-2">
+                <FileText className="w-4 h-4 text-rose-500 shrink-0" />
+                <span className="text-xs font-semibold text-rose-700 dark:text-rose-300 truncate" title={(submission.fileName || fileDisplay) || undefined}>
+                  {fileDisplay}
                 </span>
-                <a
-                  href={
-                    submission.linkRepo.startsWith("http")
-                      ? submission.linkRepo
-                      : `https://github.com/${submission.linkRepo}`
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#1B365D] font-bold hover:underline shrink-0"
-                >
-                  Buka Link
-                </a>
               </div>
-            )}
+              <a
+                href={fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline shrink-0"
+              >
+                Lihat PDF
+              </a>
+            </div>
           </div>
 
-          {/* Input Skor Penilaian (0-100) */}
+          {/* Input Nilai Penilaian (0-100) */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-700 block">
-              Skor Penilaian (0-100)
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Beri Penilaian (0-100)
             </label>
             <input
               type="number"
-              min={0}
-              max={100}
-              value={skor}
-              onChange={(e) => setSkor(e.target.value)}
-              placeholder="contoh: 95"
-              className="w-full bg-[#CBE0FF] text-slate-900 placeholder-slate-500 text-xs sm:text-sm px-4 py-2.5 rounded-xl focus:outline-none font-medium"
+              min="0"
+              max="100"
               required
+              placeholder="contoh: 95"
+              value={score}
+              onChange={(e) => setScore(e.target.value)}
+              className="w-full bg-[#DBEAFE] dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-500 rounded-xl px-4 py-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
-          {/* Tombol Simpan Nilai Biru Navy di Kiri Bawah */}
+          {/* Tombol Simpan Nilai Dark Navy */}
           <div className="pt-2">
             <button
               type="submit"
               disabled={loading}
-              className="bg-[#1B365D] hover:bg-[#152a48] text-white text-xs sm:text-sm font-semibold px-6 py-2.5 rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-[#182B4E] hover:bg-[#12203b] shadow-sm transition-all cursor-pointer disabled:opacity-50"
             >
               {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               <span>Simpan Nilai</span>

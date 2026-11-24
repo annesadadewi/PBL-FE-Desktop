@@ -72,6 +72,9 @@ export interface DetailTugasInfo {
   kodeKelas?: string;
   kelasId?: string;
   dosenName?: string;
+  lampiran?: string | null;
+  lampiranNama?: string | null;
+  lampiranUrl?: string | null;
 }
 
 export interface RingkasanStatistik {

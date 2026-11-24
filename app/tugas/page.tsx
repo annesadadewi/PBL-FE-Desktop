@@ -4,19 +4,19 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Sun, Moon, CheckCircle2, X, Trash2, Loader2 } from "lucide-react";
+import { Sun, Moon, CheckCircle2, X, Trash2, Loader2, BookOpen, AlertCircle } from "lucide-react";
 import CustomSelect from "@/components/CustomSelect";
 import { apiFetch } from "@/lib/api";
 
 // Tipe Data Tugas
 interface Task {
-  id: number;
+  id: string | number;
   subject: string;
   title: string;
   dueDate: string;
   submittedCount: number;
   totalStudents: number;
-  status: "Belum Dinilai" | "Berjalan";
+  status: string;
 }
 
 export default function TugasPage() {
@@ -88,27 +88,18 @@ export default function TugasPage() {
       // Map data backend ke format UI Task
       const mappedTasks: Task[] = data.map((item: any) => ({
         id: item.id,
-        subject: item.subject || item.nama_kelas || "Kecerdasan Buatan",
-        title: item.title,
-        dueDate: item.deadline,
-        submittedCount: item.submitted_count || 0,
-        totalStudents: item.total_students || 30,
+        subject: item.subject || item.nama_kelas || item.class_name || "Mata Kuliah",
+        title: item.title || item.judul,
+        dueDate: item.dueDate || item.deadline || item.deadline_text || "Hari ini",
+        submittedCount: item.submittedCount ?? item.submitted_count ?? 0,
+        totalStudents: item.totalStudents ?? item.total_students ?? 4,
         status: item.status || "Berjalan",
       }));
 
-      // Jika database masih kosong, sediakan mock data awal agar layar tidak kosong
-      if (mappedTasks.length === 0) {
-        setTasks([
-          { id: 1, subject: "Kecerdasan Buatan", title: "Proyek Klasifikasi Data", dueDate: "2026-10-08", submittedCount: 26, totalStudents: 32, status: "Belum Dinilai" },
-          { id: 2, subject: "Pemrograman Framework", title: "Arsitektur MVC", dueDate: "2026-10-04", submittedCount: 25, totalStudents: 28, status: "Berjalan" },
-          { id: 3, subject: "Mobile", title: "Integrasi REST API", dueDate: "2026-10-12", submittedCount: 18, totalStudents: 24, status: "Belum Dinilai" },
-        ]);
-      } else {
-        setTasks(mappedTasks);
-      }
+      setTasks(mappedTasks);
     } catch (err: any) {
       console.error("Gagal mengambil data tugas:", err);
-      setErrorMsg("Gagal memuat daftar tugas dari server.");
+      setErrorMsg("Gagal memuat daftar tugas dari database.");
     } finally {
       setLoading(false);
     }
@@ -156,8 +147,9 @@ export default function TugasPage() {
       const formData = new FormData();
       formData.append("class_id", String(newClassId));
       formData.append("title", trimmedTitle);
-      formData.append("description", newDescription || "Tugas reguler praktikum");
+      formData.append("description", newDescription || "Tugas reguler perkuliahan");
       formData.append("deadline", newDueDate);
+      formData.append("deadline_text", `${newDueDate} (23:59 WIB)`);
       if (newFile) {
         formData.append("lampiran", newFile);
       }
@@ -186,7 +178,7 @@ export default function TugasPage() {
   };
 
   // 4. Handle Hapus Tugas (DELETE)
-  const handleDeleteTask = async (id: number, title: string) => {
+  const handleDeleteTask = async (id: string | number, title: string) => {
     if (!confirm(`Apakah Anda yakin ingin menghapus tugas "${title}"?`)) return;
 
     try {
@@ -276,7 +268,7 @@ export default function TugasPage() {
             <Link
               href="/tugas"
               className={`flex items-center px-4 py-2.5 rounded-xl transition-all cursor-pointer ${
-                pathname === "/tugas"
+                pathname?.startsWith("/tugas")
                   ? "bg-[#3B6DB3] text-white font-semibold shadow-sm"
                   : "text-slate-200 hover:bg-blue-900/50 hover:text-white"
               }`}
@@ -306,8 +298,8 @@ export default function TugasPage() {
           </nav>
         </div>
 
-        {/* Footer Sidebar & Theme Switcher */}
-        <div className="p-6 relative">
+        {/* Footer Sidebar Theme Switcher */}
+        <div className="p-6 relative flex items-center justify-between">
           {showThemeMenu && (
             <div className="absolute bottom-16 left-6 w-48 bg-[#CBE0FE] text-slate-900 rounded-2xl shadow-2xl overflow-hidden border border-blue-200 p-1.5 space-y-1 z-30 transition-all">
               <button
@@ -366,7 +358,7 @@ export default function TugasPage() {
         {/* 2. HEADER ATAS */}
         <header className="h-20 bg-white dark:bg-black border-b border-slate-200 dark:border-slate-800 px-8 flex items-center justify-between shrink-0">
           <h1 className="text-xl md:text-2xl font-bold text-black dark:text-white tracking-tight">
-            Semester Ganjil 2026/2027
+            Semester Genap 2025/2026
           </h1>
           <div className="flex items-center gap-3">
             <div className="text-right">
@@ -374,7 +366,7 @@ export default function TugasPage() {
                 {user?.name || user?.nama || "Dosen Pengampu"}
               </div>
               <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                {user?.fakultas || "Fakultas Vokasi"}
+                {user?.fakultas || "Fakultas Ilmu Komputer"}
               </div>
             </div>
             <div className="w-10 h-10 rounded-xl bg-[#182B4E] text-white flex items-center justify-center font-bold text-base shadow-sm">
@@ -409,16 +401,24 @@ export default function TugasPage() {
           {/* Filter Dropdown Status */}
           <div className="w-44">
             <CustomSelect
-              options={["Semua Status", "Belum Dinilai", "Berjalan"]}
+              options={["Semua Status", "Belum Dinilai", "Berjalan", "Selesai"]}
               value={selectedStatus}
               onChange={(val) => setSelectedStatus(val)}
             />
           </div>
 
+          {/* Error Message */}
+          {errorMsg && (
+            <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-sm flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
           {/* Loading State */}
           {loading && (
-            <div className="flex items-center gap-3 py-12 justify-center text-slate-500 dark:text-slate-400 text-sm font-medium">
-              <Loader2 className="w-5 h-5 animate-spin" />
+            <div className="flex items-center gap-3 py-16 justify-center text-slate-500 dark:text-slate-400 text-sm font-medium">
+              <Loader2 className="w-6 h-6 animate-spin text-[#182B4E]" />
               <span>Memuat data tugas dari database...</span>
             </div>
           )}
@@ -426,60 +426,72 @@ export default function TugasPage() {
           {/* Grid Card Tugas */}
           {!loading && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="bg-[#C2D9FF] p-6 rounded-2xl flex flex-col justify-between h-48 text-slate-900 shadow-sm relative group"
-                >
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs text-slate-700 font-medium">{task.subject}</p>
-                      {user?.role?.toLowerCase() !== "mahasiswa" && (
-                        <button
-                          onClick={() => handleDeleteTask(task.id, task.title)}
-                          className="text-red-600 hover:text-red-800 p-1 transition-colors cursor-pointer"
-                          title="Hapus Tugas"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                    <h3 className="text-base font-bold text-slate-950 mt-1">
-                      <Link
-                        href={`/tugas/${task.id}`}
-                        className="hover:underline hover:text-[#182B4E] transition-colors cursor-pointer"
-                        title="Lihat Pengumpulan & Penilaian Tugas"
-                      >
-                        {task.title}
-                      </Link>
-                    </h3>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="text-xs text-slate-600 font-medium space-y-0.5">
-                      <p>Tenggat: {task.dueDate}</p>
-                      <p>
-                        Sudah mengumpulkan: {task.submittedCount}/{task.totalStudents}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="inline-block bg-white text-slate-800 text-[11px] font-semibold px-3 py-1 rounded-full shadow-xs">
-                        {task.status}
-                      </span>
-
-                      <Link
-                        href={`/tugas/${task.id}`}
-                        className="inline-block bg-[#182B4E] hover:bg-[#12203b] text-white text-[11px] font-semibold px-3 py-1 rounded-lg transition-colors"
-                      >
-                        {user?.role?.toLowerCase() === "mahasiswa"
-                          ? "Kumpulkan Tugas"
-                          : "Lihat Pengumpulan"}
-                      </Link>
-                    </div>
-                  </div>
+              {filteredTasks.length === 0 ? (
+                <div className="col-span-full py-16 text-center text-slate-400 bg-white dark:bg-[#111827] rounded-3xl border border-slate-200 dark:border-slate-800 p-8">
+                  <BookOpen className="w-10 h-10 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+                  <p className="text-base font-semibold text-slate-700 dark:text-slate-300">
+                    Tidak ada tugas yang ditemukan
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Silakan pilih filter lain atau tambahkan tugas baru.
+                  </p>
                 </div>
-              ))}
+              ) : (
+                filteredTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="bg-[#C2D9FF] p-6 rounded-2xl flex flex-col justify-between h-52 text-slate-900 shadow-sm relative group hover:shadow-md transition-shadow"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-slate-700 font-semibold">{task.subject}</p>
+                        {user?.role?.toLowerCase() !== "mahasiswa" && (
+                          <button
+                            onClick={() => handleDeleteTask(task.id, task.title)}
+                            className="text-red-600 hover:text-red-800 p-1 transition-colors cursor-pointer"
+                            title="Hapus Tugas"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                      <h3 className="text-base font-bold text-slate-950 mt-1.5 line-clamp-2">
+                        <Link
+                          href={`/tugas/${task.id}`}
+                          className="hover:underline hover:text-[#182B4E] transition-colors cursor-pointer"
+                          title="Lihat Pengumpulan & Penilaian Tugas"
+                        >
+                          {task.title}
+                        </Link>
+                      </h3>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="text-xs text-slate-700 font-medium space-y-0.5">
+                        <p>Tenggat: <span className="font-semibold">{task.dueDate}</span></p>
+                        <p>
+                          Sudah mengumpulkan: <span className="font-semibold">{task.submittedCount}/{task.totalStudents}</span>
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="inline-block bg-white text-slate-800 text-[11px] font-semibold px-3 py-1 rounded-full shadow-xs">
+                          {task.status}
+                        </span>
+
+                        <Link
+                          href={`/tugas/${task.id}`}
+                          className="inline-block bg-[#182B4E] hover:bg-[#12203b] text-white text-[11px] font-semibold px-3.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                        >
+                          {user?.role?.toLowerCase() === "mahasiswa"
+                            ? "Kumpulkan Tugas"
+                            : "Lihat Pengumpulan"}
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           )}
         </main>
@@ -487,12 +499,12 @@ export default function TugasPage() {
 
       {/* 4. MODAL TAMBAH TUGAS */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-[#E2EDFF] text-slate-900 w-full max-w-md rounded-2xl p-6 shadow-2xl relative space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-[#E2EDFF] text-slate-900 w-full max-w-md rounded-3xl p-6 shadow-2xl relative space-y-4">
             {/* Tombol Close */}
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute top-4 right-4 p-1.5 bg-[#C2D9FF] hover:bg-slate-300 rounded-lg text-slate-800 transition-colors cursor-pointer"
+              className="absolute top-5 right-5 p-1.5 bg-[#C2D9FF] hover:bg-slate-300 rounded-xl text-slate-800 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -504,7 +516,7 @@ export default function TugasPage() {
             </div>
 
             {formError && (
-              <div className="p-2.5 bg-red-100 border border-red-300 text-red-700 text-xs font-semibold rounded-xl">
+              <div className="p-3 bg-red-100 border border-red-300 text-red-700 text-xs font-semibold rounded-xl">
                 {formError}
               </div>
             )}
@@ -581,7 +593,7 @@ export default function TugasPage() {
                       </option>
                     ))
                   ) : (
-                    <option value={1}>Pemrograman Framework - Kelas A</option>
+                    <option value="kelas-ai">Kecerdasan Buatan</option>
                   )}
                 </select>
               </div>
@@ -601,10 +613,9 @@ export default function TugasPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="bg-[#26426B] hover:bg-[#1B365D] text-white text-xs sm:text-sm font-semibold px-6 py-2.5 rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2"
+                  className="bg-[#26426B] hover:bg-[#1B365D] text-white text-xs sm:text-sm font-semibold px-6 py-2.5 rounded-xl transition-all shadow-md cursor-pointer disabled:opacity-50"
                 >
-                  {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <span>Simpan Tugas</span>
+                  {submitting ? "Menyimpan..." : "Simpan Tugas"}
                 </button>
               </div>
             </form>
