@@ -1,6 +1,6 @@
 // API base URL (bisa di‑override lewat env NEXT_PUBLIC_API_URL)
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api";
+  process.env.NEXT_PUBLIC_API_URL || "https://eduinsight-backend.vercel.app/api";
 
 /**
  * Mengubah URL file (baik URL Cloudinary penuh https://... maupun path relatif /uploads/...)
