@@ -5,6 +5,7 @@ import { X, FileText, Loader2, AlertCircle } from "lucide-react";
 import { PengumpulanMahasiswa, DetailTugasInfo } from "@/types/tugas";
 import { pengumpulanService } from "@/services/pengumpulanService";
 import { resolveFileUrl } from "@/lib/api";
+import { ModalPreviewDokumen } from "./ModalPreviewDokumen";
 
 interface ModalPenilaianTugasProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export default function ModalPenilaianTugas({
   const [catatan, setCatatan] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [showPreview, setShowPreview] = useState<boolean>(false);
 
   useEffect(() => {
     if (submission) {
@@ -36,7 +38,9 @@ export default function ModalPenilaianTugas({
 
   if (!isOpen || !submission) return null;
 
-  const fileUrl = (submission.fileUrl ? resolveFileUrl(submission.fileUrl) : null) || "#";
+  const fileUrl = (submission.fileUrl
+    ? resolveFileUrl(submission.fileUrl)
+    : (submission.id ? resolveFileUrl(`/api/pengumpulan-tugas/${submission.id}/file`) : null)) || "#";
   const fileDisplay = (submission.fileName || "Laporan_Proyek_Klasifikasi Data").replace(/\.[^/.]+$/, "");
 
   const handleSave = async (e: React.FormEvent) => {
@@ -128,14 +132,13 @@ export default function ModalPenilaianTugas({
                   {fileDisplay}
                 </span>
               </div>
-              <a
-                href={fileUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline shrink-0"
+              <button
+                type="button"
+                onClick={() => setShowPreview(true)}
+                className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline shrink-0 cursor-pointer"
               >
-                Lihat PDF
-              </a>
+                Lihat Dokumen
+              </button>
             </div>
           </div>
 
@@ -168,6 +171,13 @@ export default function ModalPenilaianTugas({
             </button>
           </div>
         </form>
+
+        {/* Modal Preview Dokumen Terintegrasi (Bebas IDM Hijack) */}
+        <ModalPreviewDokumen
+          isOpen={showPreview}
+          submission={submission}
+          onClose={() => setShowPreview(false)}
+        />
       </div>
     </div>
   );
